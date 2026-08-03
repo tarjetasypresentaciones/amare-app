@@ -10,6 +10,8 @@ import Equipo from './pages/Equipo'
 import CierreCaja from './pages/CierreCaja'
 import Clientes from './pages/Clientes'
 import ServiciosManicurista from './pages/ServiciosManicurista'
+import CalendarioAdmin from './pages/CalendarioAdmin'
+import MiCalendario from './pages/MiCalendario'
 
 function Protected({ children, adminOnly = false }) {
   const { session, profile, loading } = useAuth()
@@ -37,6 +39,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/registrar" element={<Protected adminOnly><RegistrarServicio /></Protected>} />
+      <Route path="/calendario" element={<Protected adminOnly><CalendarioAdmin /></Protected>} />
+      <Route path="/mi-calendario" element={<Protected><MiCalendario /></Protected>} />
       <Route path="/historial" element={<Protected adminOnly><Historial /></Protected>} />
       <Route path="/panel" element={<Protected adminOnly><PanelAdmin /></Protected>} />
       <Route path="/equipo" element={<Protected adminOnly><Equipo /></Protected>} />
