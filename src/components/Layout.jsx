@@ -6,6 +6,8 @@ const ICONS = {
   historial: '📋',
   panel: '📊',
   equipo: '👥',
+  clientes: '📇',
+  servicios: '🏷️',
   cierre: '🗓️',
 }
 
@@ -18,6 +20,8 @@ export default function Layout({ children }) {
         { to: '/registrar', label: 'Registrar', icon: ICONS.registrar },
         { to: '/panel', label: 'Panel', icon: ICONS.panel },
         { to: '/historial', label: 'Historial', icon: ICONS.historial },
+        { to: '/clientes', label: 'Clientes', icon: ICONS.clientes },
+        { to: '/servicios-manicurista', label: 'Servicios', icon: ICONS.servicios },
         { to: '/equipo', label: 'Equipo', icon: ICONS.equipo },
         { to: '/cierre', label: 'Cierre', icon: ICONS.cierre },
       ]
