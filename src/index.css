@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg: #FAF6F5;
+  --color-surface: #FFFFFF;
+  --color-border: #EBDFDE;
+  --color-primary: #7A2E3A;
+  --color-primary-dark: #5C2029;
+  --color-accent: #C9A24B;
+  --color-accent-soft: #F1E3C4;
+  --color-text: #2D2230;
+  --color-text-muted: #8B7D87;
+  --color-success: #4E8577;
+  --color-success-soft: #E1EEE9;
+  --color-danger: #B3462C;
+  --color-danger-soft: #F6E3DD;
+
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display { font-family: var(--font-display); }
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection { background: var(--color-accent-soft); }
+
+/* Foco de teclado visible en toda la app */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Swatch de esmalte: identificador visual por manicurista */
+.polish-dot {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--color-surface), 0 1px 2px rgba(45,34,48,0.35);
+  flex-shrink: 0;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+}
