@@ -1,19 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import PolishDot from '../components/PolishDot'
+import Avatar from '../components/Avatar'
 
 const COLORES = ['#7A2E3A', '#C9A24B', '#4E8577', '#8E5B9B', '#3C6E8F', '#B3462C']
+const BUCKET_FOTOS = 'fotos-manicuristas'
 
 export default function Equipo() {
   const [manicuristas, setManicuristas] = useState([])
   const [loading, setLoading] = useState(true)
   const [nuevo, setNuevo] = useState({ nombre: '', porcentaje_default: 50, color: COLORES[0] })
   const [status, setStatus] = useState('')
+  const [subiendoFotoId, setSubiendoFotoId] = useState(null)
+
+  // Modal de datos (dirección / teléfono / whatsapp)
+  const [editandoDatosId, setEditandoDatosId] = useState(null)
+  const [formDatos, setFormDatos] = useState({ direccion: '', telefono: '', tiene_whatsapp: false })
+
+  const inputsFoto = useRef({})
 
   const cargar = () => {
     supabase
       .from('manicuristas')
-      .select('id, nombre, porcentaje_default, color, activo')
+      .select('id, nombre, porcentaje_default, color, activo, foto_url, direccion, telefono, tiene_whatsapp')
       .order('nombre')
       .then(({ data }) => {
         setManicuristas(data ?? [])
@@ -50,11 +59,74 @@ export default function Equipo() {
     cargar()
   }
 
+  // --- Foto ---
+  const elegirFoto = (manicuristaId) => {
+    inputsFoto.current[manicuristaId]?.click()
+  }
+
+  const subirFoto = async (manicurista, file) => {
+    if (!file) return
+    setStatus('')
+    setSubiendoFotoId(manicurista.id)
+
+    const extension = file.name.split('.').pop()
+    const ruta = `${manicurista.id}-${Date.now()}.${extension}`
+
+    const { error: errorSubida } = await supabase
+      .storage
+      .from(BUCKET_FOTOS)
+      .upload(ruta, file, { upsert: true, cacheControl: '3600' })
+
+    if (errorSubida) {
+      setStatus('Error subiendo la foto: ' + errorSubida.message)
+      setSubiendoFotoId(null)
+      return
+    }
+
+    const { data } = supabase.storage.from(BUCKET_FOTOS).getPublicUrl(ruta)
+
+    const { error: errorGuardado } = await supabase
+      .from('manicuristas')
+      .update({ foto_url: data.publicUrl })
+      .eq('id', manicurista.id)
+
+    if (errorGuardado) {
+      setStatus('Error guardando la foto: ' + errorGuardado.message)
+    }
+
+    setSubiendoFotoId(null)
+    cargar()
+  }
+
+  // --- Datos (dirección / teléfono / whatsapp) ---
+  const abrirDatos = (m) => {
+    setEditandoDatosId(m.id)
+    setFormDatos({
+      direccion: m.direccion ?? '',
+      telefono: m.telefono ?? '',
+      tiene_whatsapp: m.tiene_whatsapp ?? false,
+    })
+  }
+
+  const guardarDatos = async (e) => {
+    e.preventDefault()
+    await supabase
+      .from('manicuristas')
+      .update({
+        direccion: formDatos.direccion.trim() || null,
+        telefono: formDatos.telefono.trim() || null,
+        tiene_whatsapp: formDatos.tiene_whatsapp,
+      })
+      .eq('id', editandoDatosId)
+    setEditandoDatosId(null)
+    cargar()
+  }
+
   return (
     <div className="max-w-2xl">
       <h2 className="font-display text-2xl mb-1">Equipo</h2>
       <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
-        Agrega manicuristas y ajusta su porcentaje por defecto.
+        Agrega manicuristas, su foto, datos de contacto y ajusta su porcentaje por defecto.
       </p>
 
       <form onSubmit={agregar} className="card p-4 mb-6 flex flex-wrap gap-3 items-end">
@@ -109,9 +181,37 @@ export default function Equipo() {
           <p className="p-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
         ) : (
           manicuristas.map((m) => (
-            <div key={m.id} className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
-              <PolishDot color={m.color} label={m.nombre} />
-              <div className="flex items-center gap-3">
+            <div key={m.id} className="flex items-center justify-between gap-3 px-4 py-3 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative shrink-0">
+                  <Avatar url={m.foto_url} nombre={m.nombre} size={44} />
+                  <button
+                    type="button"
+                    onClick={() => elegirFoto(m.id)}
+                    disabled={subiendoFotoId === m.id}
+                    title="Cambiar foto"
+                    className="absolute -bottom-1 -right-1 rounded-full w-5 h-5 flex items-center justify-center text-[11px]"
+                    style={{ background: 'var(--color-primary)', color: '#fff', border: '2px solid var(--color-surface)' }}
+                  >
+                    {subiendoFotoId === m.id ? '…' : '📷'}
+                  </button>
+                  <input
+                    ref={(el) => (inputsFoto.current[m.id] = el)}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => subirFoto(m, e.target.files?.[0])}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <PolishDot color={m.color} label={m.nombre} />
+                  <p className="text-xs truncate mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                    {[m.telefono, m.direccion].filter(Boolean).join(' · ') || 'Sin datos de contacto'}
+                    {m.telefono && m.tiene_whatsapp && ' · WhatsApp'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
                 <label className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   %
                   <input
@@ -122,6 +222,13 @@ export default function Equipo() {
                     style={{ borderColor: 'var(--color-border)' }}
                   />
                 </label>
+                <button
+                  onClick={() => abrirDatos(m)}
+                  className="text-xs font-medium rounded-full px-3 py-1"
+                  style={{ border: '1px solid var(--color-border)' }}
+                >
+                  Editar datos
+                </button>
                 <button
                   onClick={() => toggleActivo(m)}
                   className="text-xs font-medium rounded-full px-3 py-1"
@@ -143,6 +250,51 @@ export default function Equipo() {
         Add user) y luego agrégala en la tabla <code>profiles</code> con <code>role = 'manicurista'</code> y
         el <code>manicurista_id</code> correspondiente. Instrucciones detalladas en el README.
       </p>
+
+      {/* Modal: dirección / teléfono / whatsapp */}
+      {editandoDatosId && (
+        <div className="fixed inset-0 z-20 flex items-center justify-center p-4" style={{ background: 'rgba(45,34,48,0.4)' }}>
+          <form onSubmit={guardarDatos} className="card p-5 w-full max-w-sm space-y-3" style={{ background: 'var(--color-surface)' }}>
+            <h3 className="font-display text-lg">
+              Datos de {manicuristas.find((m) => m.id === editandoDatosId)?.nombre}
+            </h3>
+            <div>
+              <label className="block text-xs font-medium mb-1">Dirección</label>
+              <input
+                type="text"
+                value={formDatos.direccion}
+                onChange={(e) => setFormDatos({ ...formDatos, direccion: e.target.value })}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: 'var(--color-border)' }}
+                placeholder="Barrio, ciudad…"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Teléfono</label>
+              <input
+                type="tel"
+                value={formDatos.telefono}
+                onChange={(e) => setFormDatos({ ...formDatos, telefono: e.target.value })}
+                className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num"
+                style={{ borderColor: 'var(--color-border)' }}
+                placeholder="+57 300 000 0000"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={formDatos.tiene_whatsapp}
+                onChange={(e) => setFormDatos({ ...formDatos, tiene_whatsapp: e.target.checked })}
+              />
+              Este número tiene WhatsApp
+            </label>
+            <div className="flex gap-2 pt-1">
+              <button type="submit" className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: 'var(--color-primary)' }}>Guardar</button>
+              <button type="button" onClick={() => setEditandoDatosId(null)} className="rounded-lg px-4 py-2 text-sm font-medium" style={{ border: '1px solid var(--color-border)' }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
