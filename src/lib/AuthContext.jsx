@@ -15,7 +15,7 @@ export function AuthProvider({ children }) {
     }
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, nombre_completo, role, manicurista_id, manicuristas(nombre, color)')
+      .select('id, nombre_completo, role, manicurista_id, manicuristas(nombre, color, foto_url)')
       .eq('id', userId)
       .single()
     if (error) {
