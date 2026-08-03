@@ -9,6 +9,7 @@ const ICONS = {
   clientes: '📇',
   servicios: '🏷️',
   cierre: '🗓️',
+  calendario: '📅',
 }
 
 export default function Layout({ children }) {
@@ -18,6 +19,7 @@ export default function Layout({ children }) {
   const links = isAdmin
     ? [
         { to: '/registrar', label: 'Registrar', icon: ICONS.registrar },
+        { to: '/calendario', label: 'Calendario', icon: ICONS.calendario },
         { to: '/panel', label: 'Panel', icon: ICONS.panel },
         { to: '/historial', label: 'Historial', icon: ICONS.historial },
         { to: '/clientes', label: 'Clientes', icon: ICONS.clientes },
@@ -27,6 +29,7 @@ export default function Layout({ children }) {
       ]
     : [
         { to: '/mis-ingresos', label: 'Mis ingresos', icon: ICONS.panel },
+        { to: '/mi-calendario', label: 'Mi calendario', icon: ICONS.calendario },
       ]
 
   const handleSignOut = async () => {
