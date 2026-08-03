@@ -23,16 +23,20 @@ function Protected({ children, adminOnly = false }) {
     )
   }
   if (!session) return <Navigate to="/login" state={{ from: location.pathname }} replace />
-  if (adminOnly && profile?.role !== 'admin') return <Navigate to="/registrar" replace />
+  const homePath = profile?.role === 'admin' ? '/registrar' : '/mis-ingresos'
+  if (adminOnly && profile?.role !== 'admin') return <Navigate to={homePath} replace />
 
   return <Layout>{children}</Layout>
 }
 
 function AppRoutes() {
+  const { profile } = useAuth()
+  const homePath = profile?.role === 'admin' ? '/registrar' : '/mis-ingresos'
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/registrar" element={<Protected><RegistrarServicio /></Protected>} />
+      <Route path="/registrar" element={<Protected adminOnly><RegistrarServicio /></Protected>} />
       <Route path="/historial" element={<Protected adminOnly><Historial /></Protected>} />
       <Route path="/panel" element={<Protected adminOnly><PanelAdmin /></Protected>} />
       <Route path="/equipo" element={<Protected adminOnly><Equipo /></Protected>} />
@@ -40,7 +44,7 @@ function AppRoutes() {
       <Route path="/servicios-manicurista" element={<Protected adminOnly><ServiciosManicurista /></Protected>} />
       <Route path="/cierre" element={<Protected adminOnly><CierreCaja /></Protected>} />
       <Route path="/mis-ingresos" element={<Protected><MisIngresos /></Protected>} />
-      <Route path="*" element={<Navigate to="/registrar" replace />} />
+      <Route path="*" element={<Navigate to={homePath} replace />} />
     </Routes>
   )
 }
