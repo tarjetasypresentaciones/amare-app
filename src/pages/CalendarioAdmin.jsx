@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import PolishDot from '../components/PolishDot'
+import Avatar from '../components/Avatar'
 import {
   generarSlots, minutosATexto, textoAMinutos, sumarMinutos,
   fechaISO, esFinDeSemana, nombreDia, PASO_MINUTOS,
-  HORA_INICIO_CLIENTE, HORA_FIN_CLIENTE,
+  HORA_INICIO_CLIENTE, HORA_FIN_CLIENTE, esHoy, minutosAhora,
 } from '../utils/calendario'
 
 const slots = generarSlots()
@@ -29,9 +30,17 @@ export default function CalendarioAdmin() {
   const [mostrarDiaLibreFinde, setMostrarDiaLibreFinde] = useState(false)
 
   const iso = fechaISO(fecha)
+  const esHoyVista = esHoy(fecha)
+
+  // Refresca cada minuto para que las franjas se vayan bloqueando a medida que avanza la hora
+  const [, forzarActualizacion] = useState(0)
+  useEffect(() => {
+    const intervalo = setInterval(() => forzarActualizacion((n) => n + 1), 60 * 1000)
+    return () => clearInterval(intervalo)
+  }, [])
 
   const cargarCatalogos = () => {
-    supabase.from('manicuristas').select('id, nombre, color').eq('activo', true).order('nombre')
+    supabase.from('manicuristas').select('id, nombre, color, foto_url').eq('activo', true).order('nombre')
       .then(({ data }) => setManicuristas(data ?? []))
     supabase.from('clientes').select('id, nombre, apellido').eq('activo', true).order('nombre')
       .then(({ data }) => setClientes(data ?? []))
@@ -260,7 +269,10 @@ export default function CalendarioAdmin() {
               <div className="px-2 py-3 text-xs font-semibold" style={{ borderBottom: '1px solid var(--color-border)' }} />
               {manicuristas.map((m) => (
                 <div key={m.id} className="px-2 py-3 flex items-center justify-between gap-1" style={{ borderBottom: '1px solid var(--color-border)', borderLeft: '1px solid var(--color-border)' }}>
-                  <PolishDot color={m.color} label={m.nombre} />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar url={m.foto_url} nombre={m.nombre} size={28} />
+                    <PolishDot color={m.color} label={m.nombre} />
+                  </div>
                   {esFinDeSemana(fecha) && (
                     <button
                       onClick={() => asignarDiaLibreFinde(m.id)}
@@ -296,6 +308,19 @@ export default function CalendarioAdmin() {
                     const estiloBase = { borderBottom: '1px solid var(--color-border)', borderLeft: '1px solid var(--color-border)', minHeight: '2.25rem' }
 
                     if (!celda) {
+                      const pasado = esHoyVista && minutos <= minutosAhora()
+                      if (pasado) {
+                        return (
+                          <div
+                            key={m.id}
+                            className="text-left px-2 py-2 text-xs"
+                            style={{ ...estiloBase, background: 'var(--color-bg)' }}
+                            title="Esta hora ya pasó"
+                          >
+                            <span style={{ color: 'var(--color-text-muted)' }}>Hora pasada</span>
+                          </div>
+                        )
+                      }
                       return (
                         <button
                           key={m.id}

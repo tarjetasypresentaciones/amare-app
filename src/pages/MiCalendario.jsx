@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../lib/AuthContext'
 import {
   generarSlots, minutosATexto, textoAMinutos, fechaISO, esFinDeSemana,
-  nombreDia, PASO_MINUTOS, HORA_INICIO_CLIENTE, HORA_FIN_CLIENTE,
+  nombreDia, PASO_MINUTOS, HORA_INICIO_CLIENTE, HORA_FIN_CLIENTE, esHoy, minutosAhora,
 } from '../utils/calendario'
 
 const slots = generarSlots()
@@ -28,6 +28,7 @@ export default function MiCalendario() {
   const [formFranja, setFormFranja] = useState({ hora_inicio: '13:00', hora_fin: '14:00' })
 
   const iso = fechaISO(fecha)
+  const esHoyVista = esHoy(fecha)
 
   const cargarDia = () => {
     if (!manicuristaId) return
@@ -250,6 +251,8 @@ export default function MiCalendario() {
                     <div className="rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}>
                       {celda.data.tipo === 'almuerzo' ? '🍽️ Almuerzo' : '⛔ Bloqueado'}
                     </div>
+                  ) : esHoyVista && minutos <= minutosAhora() ? (
+                    <p className="text-xs px-3 py-2" style={{ color: 'var(--color-text-muted)' }}>Hora pasada</p>
                   ) : (
                     <p className="text-xs px-3 py-2" style={{ color: 'var(--color-text-muted)' }}>Disponible</p>
                   )}
