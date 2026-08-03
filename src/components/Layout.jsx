@@ -26,7 +26,6 @@ export default function Layout({ children }) {
         { to: '/cierre', label: 'Cierre', icon: ICONS.cierre },
       ]
     : [
-        { to: '/registrar', label: 'Registrar', icon: ICONS.registrar },
         { to: '/mis-ingresos', label: 'Mis ingresos', icon: ICONS.panel },
       ]
 
