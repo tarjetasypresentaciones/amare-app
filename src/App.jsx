@@ -8,6 +8,8 @@ import PanelAdmin from './pages/PanelAdmin'
 import MisIngresos from './pages/MisIngresos'
 import Equipo from './pages/Equipo'
 import CierreCaja from './pages/CierreCaja'
+import Clientes from './pages/Clientes'
+import ServiciosManicurista from './pages/ServiciosManicurista'
 
 function Protected({ children, adminOnly = false }) {
   const { session, profile, loading } = useAuth()
@@ -34,6 +36,8 @@ function AppRoutes() {
       <Route path="/historial" element={<Protected adminOnly><Historial /></Protected>} />
       <Route path="/panel" element={<Protected adminOnly><PanelAdmin /></Protected>} />
       <Route path="/equipo" element={<Protected adminOnly><Equipo /></Protected>} />
+      <Route path="/clientes" element={<Protected adminOnly><Clientes /></Protected>} />
+      <Route path="/servicios-manicurista" element={<Protected adminOnly><ServiciosManicurista /></Protected>} />
       <Route path="/cierre" element={<Protected adminOnly><CierreCaja /></Protected>} />
       <Route path="/mis-ingresos" element={<Protected><MisIngresos /></Protected>} />
       <Route path="*" element={<Navigate to="/registrar" replace />} />
