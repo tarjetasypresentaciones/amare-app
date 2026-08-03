@@ -14,13 +14,17 @@ export default function RegistrarServicio() {
   const { profile, isAdmin } = useAuth()
   const [manicuristas, setManicuristas] = useState([])
   const [tipos, setTipos] = useState([])
+  const [clientes, setClientes] = useState([])
+  const [vinculos, setVinculos] = useState([]) // servicios_manicurista: % específico por servicio+manicurista
   const [form, setForm] = useState({
     fecha: todayISO(),
     manicurista_id: isAdmin ? '' : profile?.manicurista_id ?? '',
-    cliente_nombre: '',
+    cliente_id: '',
+    tipo_servicio_id: '',
     tipo_servicio: '',
     costo: '',
     porcentaje: '',
+    porcentajeAuto: false, // true si el % vino de servicios_manicurista (para no dejarlo pisar por error)
     metodo_pago: 'efectivo',
   })
   const [status, setStatus] = useState({ type: '', msg: '' })
@@ -40,6 +44,19 @@ export default function RegistrarServicio() {
       .eq('activo', true)
       .order('nombre')
       .then(({ data }) => setTipos(data ?? []))
+
+    supabase
+      .from('clientes')
+      .select('id, nombre, apellido')
+      .eq('activo', true)
+      .order('nombre')
+      .then(({ data }) => setClientes(data ?? []))
+
+    supabase
+      .from('servicios_manicurista')
+      .select('tipo_servicio_id, manicurista_id, porcentaje')
+      .eq('activo', true)
+      .then(({ data }) => setVinculos(data ?? []))
   }, [])
 
   useEffect(() => {
@@ -48,22 +65,32 @@ export default function RegistrarServicio() {
     }
   }, [isAdmin, profile])
 
-  // Al elegir manicurista, sugerir su % por defecto si el campo está vacío
+  // Busca si hay un % específico configurado para esta combinación de servicio + manicurista
+  const buscarPorcentajeEspecifico = (tipoServicioId, manicuristaId) =>
+    vinculos.find((v) => v.tipo_servicio_id === tipoServicioId && v.manicurista_id === manicuristaId)?.porcentaje
+
+  // Al elegir manicurista, buscar el % específico para el servicio ya elegido; si no hay, usar su % por defecto
   const handleManicuristaChange = (id) => {
     const m = manicuristas.find((x) => x.id === id)
+    const especifico = buscarPorcentajeEspecifico(form.tipo_servicio_id, id)
     setForm((f) => ({
       ...f,
       manicurista_id: id,
-      porcentaje: f.porcentaje === '' ? m?.porcentaje_default ?? '' : f.porcentaje,
+      porcentaje: especifico ?? m?.porcentaje_default ?? f.porcentaje,
+      porcentajeAuto: especifico !== undefined,
     }))
   }
 
-  const handleTipoChange = (nombre) => {
-    const t = tipos.find((x) => x.nombre === nombre)
+  const handleTipoChange = (tipoServicioId) => {
+    const t = tipos.find((x) => x.id === tipoServicioId)
+    const especifico = buscarPorcentajeEspecifico(tipoServicioId, form.manicurista_id)
     setForm((f) => ({
       ...f,
-      tipo_servicio: nombre,
+      tipo_servicio_id: tipoServicioId,
+      tipo_servicio: t?.nombre ?? '',
       costo: f.costo === '' && t?.precio_sugerido ? String(t.precio_sugerido) : f.costo,
+      porcentaje: especifico ?? f.porcentaje,
+      porcentajeAuto: especifico !== undefined,
     }))
   }
 
@@ -75,17 +102,20 @@ export default function RegistrarServicio() {
     e.preventDefault()
     setStatus({ type: '', msg: '' })
 
-    if (!form.manicurista_id || !form.tipo_servicio || !form.costo || form.porcentaje === '') {
+    if (!form.manicurista_id || !form.tipo_servicio_id || !form.costo || form.porcentaje === '') {
       setStatus({ type: 'error', msg: 'Completa manicurista, servicio, costo y porcentaje.' })
       return
     }
 
     setSaving(true)
     const { data: userData } = await supabase.auth.getUser()
+    const cliente = clientes.find((c) => c.id === form.cliente_id)
     const { error } = await supabase.from('registros_servicios').insert({
       fecha: form.fecha,
       manicurista_id: form.manicurista_id,
-      cliente_nombre: form.cliente_nombre || null,
+      cliente_id: form.cliente_id || null,
+      cliente_nombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : null,
+      tipo_servicio_id: form.tipo_servicio_id,
       tipo_servicio: form.tipo_servicio,
       costo: costoNum,
       porcentaje: porcentajeNum,
@@ -102,10 +132,12 @@ export default function RegistrarServicio() {
     setStatus({ type: 'success', msg: `Servicio guardado. Se le paga ${currency(pagadoPreview)} a la manicurista.` })
     setForm((f) => ({
       ...f,
-      cliente_nombre: '',
+      cliente_id: '',
+      tipo_servicio_id: '',
       tipo_servicio: '',
       costo: '',
       porcentaje: isAdmin ? '' : f.porcentaje,
+      porcentajeAuto: false,
     }))
   }
 
@@ -163,32 +195,33 @@ export default function RegistrarServicio() {
 
         <div>
           <label className="block text-sm font-medium mb-1">Cliente (opcional)</label>
-          <input
-            type="text"
-            value={form.cliente_nombre}
-            onChange={(e) => setForm({ ...form, cliente_nombre: e.target.value })}
+          <select
+            value={form.cliente_id}
+            onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}
             className="w-full rounded-lg border px-3 py-2 text-sm"
             style={{ borderColor: 'var(--color-border)' }}
-            placeholder="Nombre del cliente"
-          />
+          >
+            <option value="">Selecciona…</option>
+            {clientes.map((c) => (
+              <option key={c.id} value={c.id}>{c.nombre} {c.apellido}</option>
+            ))}
+          </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">Tipo de servicio</label>
-          <input
-            list="tipos-servicio"
+          <select
             required
-            value={form.tipo_servicio}
+            value={form.tipo_servicio_id}
             onChange={(e) => handleTipoChange(e.target.value)}
             className="w-full rounded-lg border px-3 py-2 text-sm"
             style={{ borderColor: 'var(--color-border)' }}
-            placeholder="Ej. Manicure semipermanente"
-          />
-          <datalist id="tipos-servicio">
+          >
+            <option value="">Selecciona…</option>
             {tipos.map((t) => (
-              <option key={t.id} value={t.nombre} />
+              <option key={t.id} value={t.id}>{t.nombre}</option>
             ))}
-          </datalist>
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -207,7 +240,14 @@ export default function RegistrarServicio() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">% para manicurista</label>
+            <label className="block text-sm font-medium mb-1">
+              % para manicurista
+              {form.porcentajeAuto && (
+                <span className="ml-1 text-xs font-normal" style={{ color: 'var(--color-success)' }}>
+                  (automático)
+                </span>
+              )}
+            </label>
             <input
               type="number"
               min="0"
@@ -215,7 +255,7 @@ export default function RegistrarServicio() {
               step="1"
               required
               value={form.porcentaje}
-              onChange={(e) => setForm({ ...form, porcentaje: e.target.value })}
+              onChange={(e) => setForm({ ...form, porcentaje: e.target.value, porcentajeAuto: false })}
               className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num"
               style={{ borderColor: 'var(--color-border)' }}
               placeholder="50"
