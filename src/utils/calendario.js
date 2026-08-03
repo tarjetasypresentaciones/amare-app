@@ -52,3 +52,20 @@ export const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves'
 export function nombreDia(date) {
   return DIAS_SEMANA[date.getDay()]
 }
+
+// ¿La fecha dada es el día de hoy?
+export function esHoy(date) {
+  return fechaISO(date) === fechaISO(new Date())
+}
+
+// Minutos transcurridos desde medianoche, en el momento actual
+export function minutosAhora() {
+  const d = new Date()
+  return d.getHours() * 60 + d.getMinutes()
+}
+
+// Un slot ya "pasó" si estamos viendo el día de hoy y su hora de inicio
+// ya llegó o quedó atrás (no tiene sentido agendar algo que ya empezó).
+export function slotPasado(fecha, minutosSlot) {
+  return esHoy(fecha) && minutosSlot <= minutosAhora()
+}
