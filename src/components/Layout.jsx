@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import Avatar from './Avatar'
 
 const ICONS = {
   registrar: '💅',
@@ -72,18 +73,21 @@ export default function Layout({ children }) {
             </NavLink>
           ))}
         </nav>
-        <div className="px-4 py-5 border-t" style={{ borderColor: 'var(--color-border)' }}>
-          <p className="text-sm font-medium truncate">{profile?.nombre_completo}</p>
-          <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
-            {isAdmin ? 'Administradora/or' : 'Manicurista'}
-          </p>
-          <button
-            onClick={handleSignOut}
-            className="text-sm font-medium"
-            style={{ color: 'var(--color-danger)' }}
-          >
-            Cerrar sesión
-          </button>
+        <div className="px-4 py-5 border-t flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
+          {!isAdmin && <Avatar url={profile?.manicuristas?.foto_url} nombre={profile?.nombre_completo} size={36} />}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{profile?.nombre_completo}</p>
+            <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>
+              {isAdmin ? 'Administradora/or' : 'Manicurista'}
+            </p>
+            <button
+              onClick={handleSignOut}
+              className="text-sm font-medium"
+              style={{ color: 'var(--color-danger)' }}
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -95,9 +99,12 @@ export default function Layout({ children }) {
         <h1 className="font-display italic text-2xl" style={{ color: 'var(--color-primary)' }}>
           Amaré
         </h1>
-        <button onClick={handleSignOut} className="text-sm font-medium" style={{ color: 'var(--color-danger)' }}>
-          Salir
-        </button>
+        <div className="flex items-center gap-3">
+          {!isAdmin && <Avatar url={profile?.manicuristas?.foto_url} nombre={profile?.nombre_completo} size={32} />}
+          <button onClick={handleSignOut} className="text-sm font-medium" style={{ color: 'var(--color-danger)' }}>
+            Salir
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 pb-24 md:pb-8 px-4 md:px-8 pt-5 md:pt-8 max-w-6xl w-full mx-auto">
