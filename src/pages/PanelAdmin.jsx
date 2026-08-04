@@ -1,14 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { supabase } from '../lib/supabaseClient'
-import { currency, startOfWeekISO, todayISO } from '../utils/format'
+import { currency, startOfWeekISO, todayISO, daysAgoISO } from '../utils/format'
 import PolishDot from '../components/PolishDot'
-
-function daysAgoISO(n) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
-}
 
 export default function PanelAdmin() {
   const [registros, setRegistros] = useState([])

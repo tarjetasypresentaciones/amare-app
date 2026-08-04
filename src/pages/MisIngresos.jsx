@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../lib/AuthContext'
-import { currency, shortDate, startOfWeekISO, todayISO } from '../utils/format'
+import { currency, shortDate, startOfWeekISO, todayISO, daysAgoISO } from '../utils/format'
 
 export default function MisIngresos() {
   const { profile } = useAuth()
@@ -10,13 +10,11 @@ export default function MisIngresos() {
 
   useEffect(() => {
     if (!profile?.manicurista_id) return
-    const desde = new Date()
-    desde.setDate(desde.getDate() - 90)
     supabase
       .from('registros_servicios')
       .select('id, fecha, cliente_nombre, tipo_servicio, costo, porcentaje, pagado_manicurista')
       .eq('manicurista_id', profile.manicurista_id)
-      .gte('fecha', desde.toISOString().slice(0, 10))
+      .gte('fecha', daysAgoISO(90))
       .order('fecha', { ascending: false })
       .then(({ data }) => {
         setRegistros(data ?? [])
