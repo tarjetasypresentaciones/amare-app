@@ -36,7 +36,7 @@ export default function MiCalendario() {
     Promise.all([
       supabase
         .from('agendamientos_servicios')
-        .select('id, hora_inicio, hora_fin, clientes(nombre, apellido), tipos_servicio(nombre)')
+        .select('id, hora_inicio, hora_fin, cliente_id, tipos_servicio(nombre)')
         .eq('manicurista_id', manicuristaId)
         .eq('fecha', iso)
         .eq('estado', 'confirmado'),
@@ -53,8 +53,20 @@ export default function MiCalendario() {
         .eq('manicurista_id', manicuristaId)
         .eq('fecha', iso)
         .eq('estado', 'aprobado'),
-    ]).then(([ag, dl, fb]) => {
-      setAgendamientos(ag.data ?? [])
+    ]).then(async ([ag, dl, fb]) => {
+      const citas = ag.data ?? []
+      // Los nombres de los clientes se traen aparte, desde una vista que
+      // solo expone nombre/apellido (nunca teléfono ni correo).
+      const idsClientes = [...new Set(citas.map((c) => c.cliente_id).filter(Boolean))]
+      let clientesPorId = {}
+      if (idsClientes.length > 0) {
+        const { data: clientesData } = await supabase
+          .from('clientes_visibles')
+          .select('id, nombre, apellido')
+          .in('id', idsClientes)
+        clientesPorId = Object.fromEntries((clientesData ?? []).map((c) => [c.id, c]))
+      }
+      setAgendamientos(citas.map((c) => ({ ...c, clientes: clientesPorId[c.cliente_id] ?? null })))
       setDiaLibre(dl.data ?? null)
       setFranjasDia(fb.data ?? [])
       setLoading(false)
