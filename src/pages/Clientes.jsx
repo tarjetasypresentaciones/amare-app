@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import ImportarExcel from '../components/ImportarExcel'
 
 // Deja solo dígitos y arma el link de WhatsApp (wa.me exige el número sin '+', espacios ni guiones)
 const linkWhatsapp = (telefono) => {
   const soloDigitos = (telefono || '').replace(/\D/g, '')
   return `https://wa.me/${soloDigitos}`
 }
+
+const COLUMNAS_IMPORTAR = [
+  { key: 'nombre', etiqueta: 'Nombre', requerido: true, tipo: 'texto', ejemplo: 'María' },
+  { key: 'apellido', etiqueta: 'Apellido', requerido: true, tipo: 'texto', ejemplo: 'Gómez' },
+  { key: 'correo', etiqueta: 'Correo', requerido: false, tipo: 'texto', ejemplo: 'maria@correo.com' },
+  { key: 'telefono', etiqueta: 'Teléfono', requerido: false, tipo: 'texto', ejemplo: '3001234567' },
+  { key: 'tiene_whatsapp', etiqueta: 'Tiene WhatsApp (Sí/No)', requerido: false, tipo: 'booleano', ejemplo: 'Sí' },
+]
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([])
@@ -87,9 +96,35 @@ export default function Clientes() {
     return texto.includes(busqueda.toLowerCase())
   })
 
+  const importarClientes = async (filas) => {
+    let ok = 0
+    const fallos = []
+    for (const fila of filas) {
+      const { error } = await supabase.from('clientes').insert({
+        nombre: fila.nombre,
+        apellido: fila.apellido,
+        correo: fila.correo || null,
+        telefono: fila.telefono || null,
+        tiene_whatsapp: fila.tiene_whatsapp,
+      })
+      if (error) fallos.push({ fila, error: error.message })
+      else ok++
+    }
+    return { ok, fallos }
+  }
+
   return (
     <div className="max-w-2xl">
-      <h2 className="font-display text-2xl mb-1">Clientes</h2>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h2 className="font-display text-2xl">Clientes</h2>
+        <ImportarExcel
+          titulo="Importar clientes desde Excel"
+          nombreArchivo="plantilla_clientes"
+          columnas={COLUMNAS_IMPORTAR}
+          onImportar={importarClientes}
+          onTerminado={cargar}
+        />
+      </div>
       <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
         Base de datos de clientes del spa. Se usan para llenar el campo "Cliente" al registrar un servicio.
       </p>
