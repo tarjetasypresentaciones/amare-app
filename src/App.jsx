@@ -10,6 +10,7 @@ import Equipo from './pages/Equipo'
 import CierreCaja from './pages/CierreCaja'
 import Clientes from './pages/Clientes'
 import ServiciosManicurista from './pages/ServiciosManicurista'
+import TiposServicio from './pages/TiposServicio'
 import CalendarioAdmin from './pages/CalendarioAdmin'
 import MiCalendario from './pages/MiCalendario'
 
@@ -46,6 +47,7 @@ function AppRoutes() {
       <Route path="/equipo" element={<Protected adminOnly><Equipo /></Protected>} />
       <Route path="/clientes" element={<Protected adminOnly><Clientes /></Protected>} />
       <Route path="/servicios-manicurista" element={<Protected adminOnly><ServiciosManicurista /></Protected>} />
+      <Route path="/tipos-servicio" element={<Protected adminOnly><TiposServicio /></Protected>} />
       <Route path="/cierre" element={<Protected adminOnly><CierreCaja /></Protected>} />
       <Route path="/mis-ingresos" element={<Protected><MisIngresos /></Protected>} />
       <Route path="*" element={<Navigate to={homePath} replace />} />
