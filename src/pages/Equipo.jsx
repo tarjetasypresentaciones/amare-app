@@ -2,9 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import PolishDot from '../components/PolishDot'
 import Avatar from '../components/Avatar'
+import ImportarExcel from '../components/ImportarExcel'
 
 const COLORES = ['#7A2E3A', '#C9A24B', '#4E8577', '#8E5B9B', '#3C6E8F', '#B3462C']
 const BUCKET_FOTOS = 'fotos-manicuristas'
+
+const COLUMNAS_IMPORTAR = [
+  { key: 'nombre', etiqueta: 'Nombre', requerido: true, tipo: 'texto', ejemplo: 'Naiffe Chacón' },
+  { key: 'porcentaje_default', etiqueta: 'Porcentaje', requerido: false, tipo: 'numero', ejemplo: '50' },
+  { key: 'direccion', etiqueta: 'Dirección', requerido: false, tipo: 'texto', ejemplo: 'Barrio Centro, Bogotá' },
+  { key: 'telefono', etiqueta: 'Teléfono', requerido: false, tipo: 'texto', ejemplo: '3001234567' },
+  { key: 'tiene_whatsapp', etiqueta: 'Tiene WhatsApp (Sí/No)', requerido: false, tipo: 'booleano', ejemplo: 'Sí' },
+]
 
 export default function Equipo() {
   const [manicuristas, setManicuristas] = useState([])
@@ -122,9 +131,37 @@ export default function Equipo() {
     cargar()
   }
 
+  // --- Importar desde Excel ---
+  const importarManicuristas = async (filas) => {
+    let ok = 0
+    const fallos = []
+    for (const [i, fila] of filas.entries()) {
+      const { error } = await supabase.from('manicuristas').insert({
+        nombre: fila.nombre,
+        porcentaje_default: fila.porcentaje_default ?? 50,
+        color: COLORES[i % COLORES.length],
+        direccion: fila.direccion || null,
+        telefono: fila.telefono || null,
+        tiene_whatsapp: fila.tiene_whatsapp,
+      })
+      if (error) fallos.push({ fila, error: error.message })
+      else ok++
+    }
+    return { ok, fallos }
+  }
+
   return (
     <div className="max-w-2xl">
-      <h2 className="font-display text-2xl mb-1">Equipo</h2>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h2 className="font-display text-2xl">Equipo</h2>
+        <ImportarExcel
+          titulo="Importar manicuristas desde Excel"
+          nombreArchivo="plantilla_manicuristas"
+          columnas={COLUMNAS_IMPORTAR}
+          onImportar={importarManicuristas}
+          onTerminado={cargar}
+        />
+      </div>
       <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
         Agrega manicuristas, su foto, datos de contacto y ajusta su porcentaje por defecto.
       </p>
