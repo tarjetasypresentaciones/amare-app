@@ -160,7 +160,12 @@ export default function CalendarioAdmin() {
     })
 
     if (error) {
-      setStatus('Error: ' + error.message)
+      if (error.code === '23505') {
+        setStatus('Alguien más acaba de agendar ese mismo horario justo ahora. Cierra esta ventana y elige otra hora.')
+        cargarDia() // refresca el calendario de fondo para que se vea la cita que ganó la carrera
+      } else {
+        setStatus('Error: ' + error.message)
+      }
       return
     }
     setSlotSeleccionado(null)
