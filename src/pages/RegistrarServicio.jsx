@@ -10,6 +10,8 @@ const METODOS = [
   { value: 'otro', label: 'Otro' },
 ]
 
+const MAX_OBSERVACION = 100
+
 export default function RegistrarServicio() {
   const { profile, isAdmin } = useAuth()
   const [manicuristas, setManicuristas] = useState([])
@@ -22,9 +24,10 @@ export default function RegistrarServicio() {
     cliente_id: '',
     tipo_servicio_id: '',
     tipo_servicio: '',
-    costo: '',
     porcentaje: '',
-    porcentajeAuto: false, // true si el % vino de servicios_manicurista (para no dejarlo pisar por error)
+    porcentajeAuto: false, // true si el % vino de servicios_manicurista (para diferenciarlo del % por defecto)
+    costoAdicional: '',
+    observaciones: '',
     metodo_pago: 'efectivo',
   })
   const [status, setStatus] = useState({ type: '', msg: '' })
@@ -88,22 +91,37 @@ export default function RegistrarServicio() {
       ...f,
       tipo_servicio_id: tipoServicioId,
       tipo_servicio: t?.nombre ?? '',
-      costo: f.costo === '' && t?.precio_sugerido ? String(t.precio_sugerido) : f.costo,
       porcentaje: especifico ?? f.porcentaje,
       porcentajeAuto: especifico !== undefined,
     }))
   }
 
-  const costoNum = parseFloat(form.costo) || 0
+  // El precio base viene siempre del tipo de servicio elegido — ya no se puede escribir a mano
+  const tipoSeleccionado = tipos.find((t) => t.id === form.tipo_servicio_id)
+  const costoBaseNum = tipoSeleccionado?.precio_sugerido ? Number(tipoSeleccionado.precio_sugerido) : 0
+  const costoAdicionalNum = parseFloat(form.costoAdicional) || 0
+  const costoTotalNum = costoBaseNum + costoAdicionalNum
   const porcentajeNum = parseFloat(form.porcentaje) || 0
-  const pagadoPreview = Math.round((costoNum * porcentajeNum) / 100)
+  const pagadoPreview = Math.round((costoTotalNum * porcentajeNum) / 100)
+  const requiereObservacion = costoAdicionalNum > 0
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setStatus({ type: '', msg: '' })
 
-    if (!form.manicurista_id || !form.tipo_servicio_id || !form.costo || form.porcentaje === '') {
-      setStatus({ type: 'error', msg: 'Completa manicurista, servicio, costo y porcentaje.' })
+    if (!form.manicurista_id || !form.tipo_servicio_id || form.porcentaje === '') {
+      setStatus({ type: 'error', msg: 'Completa manicurista, servicio y porcentaje.' })
+      return
+    }
+    if (costoTotalNum <= 0) {
+      setStatus({
+        type: 'error',
+        msg: 'Este tipo de servicio no tiene un precio configurado. Ve a "Tipos de servicio" y agrégale un precio.',
+      })
+      return
+    }
+    if (requiereObservacion && !form.observaciones.trim()) {
+      setStatus({ type: 'error', msg: 'Como hay un costo adicional, escribe una observación explicando de qué se trata.' })
       return
     }
 
@@ -117,7 +135,9 @@ export default function RegistrarServicio() {
       cliente_nombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : null,
       tipo_servicio_id: form.tipo_servicio_id,
       tipo_servicio: form.tipo_servicio,
-      costo: costoNum,
+      costo: costoTotalNum,
+      costo_adicional: costoAdicionalNum,
+      observaciones: form.observaciones.trim() || null,
       porcentaje: porcentajeNum,
       metodo_pago: form.metodo_pago,
       created_by: userData?.user?.id,
@@ -135,9 +155,10 @@ export default function RegistrarServicio() {
       cliente_id: '',
       tipo_servicio_id: '',
       tipo_servicio: '',
-      costo: '',
       porcentaje: isAdmin ? '' : f.porcentaje,
       porcentajeAuto: false,
+      costoAdicional: '',
+      observaciones: '',
     }))
   }
 
@@ -226,18 +247,52 @@ export default function RegistrarServicio() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Costo (COP)</label>
+            <label className="block text-sm font-medium mb-1">Costo adicional (COP)</label>
             <input
               type="number"
               min="0"
               step="1000"
-              required
-              value={form.costo}
-              onChange={(e) => setForm({ ...form, costo: e.target.value })}
+              value={form.costoAdicional}
+              onChange={(e) => setForm({ ...form, costoAdicional: e.target.value })}
               className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num"
               style={{ borderColor: 'var(--color-border)' }}
-              placeholder="60000"
+              placeholder="0"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Observaciones
+              {requiereObservacion && <span style={{ color: 'var(--color-danger)' }}> *</span>}
+            </label>
+            <input
+              type="text"
+              maxLength={MAX_OBSERVACION}
+              required={requiereObservacion}
+              value={form.observaciones}
+              onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              style={{ borderColor: 'var(--color-border)' }}
+              placeholder="Ej: diseño extra en 2 uñas"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Costo (COP)</label>
+            <input
+              type="text"
+              readOnly
+              disabled
+              value={currency(costoTotalNum)}
+              className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num cursor-not-allowed"
+              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}
+            />
+            {costoAdicionalNum > 0 && (
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                {currency(costoBaseNum)} del servicio + {currency(costoAdicionalNum)} adicional
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">
@@ -249,16 +304,13 @@ export default function RegistrarServicio() {
               )}
             </label>
             <input
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              required
-              value={form.porcentaje}
-              onChange={(e) => setForm({ ...form, porcentaje: e.target.value, porcentajeAuto: false })}
-              className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num"
-              style={{ borderColor: 'var(--color-border)' }}
-              placeholder="50"
+              type="text"
+              readOnly
+              disabled
+              value={form.porcentaje === '' ? '' : `${form.porcentaje}%`}
+              className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num cursor-not-allowed"
+              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}
+              placeholder="Elige manicurista y servicio"
             />
           </div>
         </div>
