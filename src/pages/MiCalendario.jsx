@@ -110,12 +110,14 @@ export default function MiCalendario() {
     agendamientos.forEach((a) => {
       const inicio = textoAMinutos(a.hora_inicio.slice(0, 5))
       const fin = textoAMinutos(a.hora_fin.slice(0, 5))
-      for (let t = inicio; t < fin; t += PASO_MINUTOS) mapa[t] = { tipo: 'servicio', esInicio: t === inicio, data: a }
+      const numSlots = Math.max(1, Math.round((fin - inicio) / PASO_MINUTOS))
+      for (let t = inicio; t < fin; t += PASO_MINUTOS) mapa[t] = { tipo: 'servicio', esInicio: t === inicio, numSlots, data: a }
     })
     franjasDia.forEach((f) => {
       const inicio = textoAMinutos(f.hora_inicio.slice(0, 5))
       const fin = textoAMinutos(f.hora_fin.slice(0, 5))
-      for (let t = inicio; t < fin; t += PASO_MINUTOS) mapa[t] = { tipo: 'franja', esInicio: t === inicio, data: f }
+      const numSlots = Math.max(1, Math.round((fin - inicio) / PASO_MINUTOS))
+      for (let t = inicio; t < fin; t += PASO_MINUTOS) mapa[t] = { tipo: 'franja', esInicio: t === inicio, numSlots, data: f }
     })
     return mapa
   }, [agendamientos, franjasDia])
@@ -245,22 +247,31 @@ export default function MiCalendario() {
 
             if (celda && !celda.esInicio) return null
 
+            const horaFinTexto = celda?.data?.hora_fin ? celda.data.hora_fin.slice(0, 5) : null
+            const alturaBloque = celda?.numSlots ? `${celda.numSlots * 2.75}rem` : undefined
+
             return (
               <div key={minutos} className="flex items-stretch gap-3 px-4 py-2">
                 <div
-                  className="text-xs font-mono-num w-12 shrink-0 flex items-center"
+                  className="text-xs font-mono-num w-12 shrink-0 flex items-start pt-1"
                   style={{ color: enHorarioCliente ? 'var(--color-text)' : 'var(--color-text-muted)' }}
                 >
-                  {horaTexto}
+                  {horaFinTexto ? `${horaTexto}–${horaFinTexto}` : horaTexto}
                 </div>
                 <div className="flex-1 py-1">
                   {celda?.tipo === 'servicio' ? (
-                    <div className="rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--color-accent-soft)' }}>
+                    <div
+                      className="rounded-lg px-3 py-2 text-sm flex flex-col"
+                      style={{ background: 'var(--color-accent-soft)', minHeight: alturaBloque }}
+                    >
                       <p className="font-semibold">{celda.data.clientes?.nombre} {celda.data.clientes?.apellido}</p>
                       <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{celda.data.tipos_servicio?.nombre}</p>
                     </div>
                   ) : celda?.tipo === 'franja' ? (
-                    <div className="rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}>
+                    <div
+                      className="rounded-lg px-3 py-2 text-sm flex items-center"
+                      style={{ background: 'var(--color-bg)', color: 'var(--color-text-muted)', minHeight: alturaBloque }}
+                    >
                       {celda.data.tipo === 'almuerzo' ? '🍽️ Almuerzo' : '⛔ Bloqueado'}
                     </div>
                   ) : esHoyVista && minutos <= minutosAhora() ? (
