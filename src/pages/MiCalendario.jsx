@@ -262,7 +262,7 @@ export default function MiCalendario() {
                   {celda?.tipo === 'servicio' ? (
                     <div
                       className="rounded-lg px-3 py-2 text-sm flex flex-col"
-                      style={{ background: 'var(--color-accent-soft)', minHeight: alturaBloque }}
+                      style={{ background: 'var(--color-accent-soft)', border: '1.5px solid #7A2E3A', minHeight: alturaBloque }}
                     >
                       <p className="font-semibold">{celda.data.clientes?.nombre} {celda.data.clientes?.apellido}</p>
                       <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{celda.data.tipos_servicio?.nombre}</p>

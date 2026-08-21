@@ -420,7 +420,14 @@ export default function CalendarioAdmin() {
                       <div
                         key={`${m.id}-${minutos}`}
                         className="text-left px-2 py-1.5 text-xs overflow-hidden flex flex-col"
-                        style={{ ...estiloBase, gridRow: `${i + 1} / span ${celda.numSlots}`, background: 'var(--color-accent-soft)' }}
+                        style={{
+                          gridColumn,
+                          gridRow: `${i + 1} / span ${celda.numSlots}`,
+                          background: 'var(--color-accent-soft)',
+                          border: '1.5px solid #7A2E3A',
+                          borderRadius: '0.5rem',
+                          margin: '2px',
+                        }}
                       >
                         <p className="font-semibold truncate">{cita.clientes?.nombre} {cita.clientes?.apellido}</p>
                         <p className="truncate" style={{ color: 'var(--color-text-muted)' }}>{cita.tipos_servicio?.nombre}</p>
