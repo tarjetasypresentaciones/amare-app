@@ -29,6 +29,7 @@ export default function MiCalendario() {
 
   const [mostrarFormAlmuerzo, setMostrarFormAlmuerzo] = useState(false)
   const [formAlmuerzo, setFormAlmuerzo] = useState({ hora_inicio: '13:00', hora_fin: '14:00' })
+  const [almuerzoEditandoId, setAlmuerzoEditandoId] = useState(null)
 
   const iso = fechaISO(fecha)
   const esHoyVista = esHoy(fecha)
@@ -172,19 +173,41 @@ export default function MiCalendario() {
       setStatus('No puedes marcar almuerzo en una hora que ya pasó.')
       return
     }
-    const { error } = await supabase.from('franjas_bloqueadas').insert({
-      manicurista_id: manicuristaId,
-      fecha: iso,
-      hora_inicio: formAlmuerzo.hora_inicio,
-      hora_fin: formAlmuerzo.hora_fin,
-      tipo: 'almuerzo',
-      estado: 'aprobado',
-    })
+    const { error } = almuerzoEditandoId
+      ? await supabase.from('franjas_bloqueadas')
+          .update({ hora_inicio: formAlmuerzo.hora_inicio, hora_fin: formAlmuerzo.hora_fin })
+          .eq('id', almuerzoEditandoId)
+      : await supabase.from('franjas_bloqueadas').insert({
+          manicurista_id: manicuristaId,
+          fecha: iso,
+          hora_inicio: formAlmuerzo.hora_inicio,
+          hora_fin: formAlmuerzo.hora_fin,
+          tipo: 'almuerzo',
+          estado: 'aprobado',
+        })
     if (error) {
       setStatus('Error: ' + error.message)
       return
     }
     setMostrarFormAlmuerzo(false)
+    setAlmuerzoEditandoId(null)
+    cargarDia()
+  }
+
+  const abrirEditarAlmuerzo = (franja) => {
+    setStatus('')
+    setAlmuerzoEditandoId(franja.id)
+    setFormAlmuerzo({ hora_inicio: franja.hora_inicio.slice(0, 5), hora_fin: franja.hora_fin.slice(0, 5) })
+    setMostrarFormAlmuerzo(true)
+  }
+
+  const cancelarAlmuerzo = async (franjaId) => {
+    if (!confirm('¿Cancelar tu almuerzo? Quedará libre para agendar servicios en ese horario.')) return
+    const { error } = await supabase.from('franjas_bloqueadas').update({ estado: 'rechazado', observacion_admin: 'Cancelado por la manicurista' }).eq('id', franjaId)
+    if (error) {
+      setStatus('Error: ' + error.message)
+      return
+    }
     cargarDia()
   }
 
@@ -236,7 +259,7 @@ export default function MiCalendario() {
         </button>
         {!yaTieneAlmuerzo && (
           <button
-            onClick={() => { setStatus(''); setMostrarFormAlmuerzo(true) }}
+            onClick={() => { setStatus(''); setAlmuerzoEditandoId(null); setFormAlmuerzo({ hora_inicio: '13:00', hora_fin: '14:00' }); setMostrarFormAlmuerzo(true) }}
             className="text-xs font-medium rounded-full px-3 py-1.5"
             style={{ border: '1px solid var(--color-border)' }}
           >
@@ -292,10 +315,30 @@ export default function MiCalendario() {
                     </div>
                   ) : celda?.tipo === 'franja' ? (
                     <div
-                      className="rounded-lg px-3 py-2 text-sm flex items-center"
+                      className="rounded-lg px-3 py-2 text-sm flex flex-col"
                       style={{ background: 'var(--color-bg)', color: 'var(--color-text-muted)', minHeight: alturaBloque }}
                     >
-                      {celda.data.tipo === 'almuerzo' ? '🍽️ Almuerzo' : '⛔ Bloqueado'}
+                      <span>{celda.data.tipo === 'almuerzo' ? '🍽️ Almuerzo' : '⛔ Bloqueado'}</span>
+                      {celda.data.tipo === 'almuerzo' && (
+                        <div className="flex gap-1 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => abrirEditarAlmuerzo(celda.data)}
+                            className="text-[10px] font-medium rounded-full px-2 py-0.5"
+                            style={{ background: '#C9A24B', color: '#fff' }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => cancelarAlmuerzo(celda.data.id)}
+                            className="text-[10px] font-medium rounded-full px-2 py-0.5"
+                            style={{ background: 'var(--color-danger)', color: '#fff' }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : esHoyVista && minutos <= minutosAhora() ? (
                     <p className="text-xs px-3 py-2" style={{ color: 'var(--color-text-muted)' }}>Hora pasada</p>
@@ -427,7 +470,7 @@ export default function MiCalendario() {
       {mostrarFormAlmuerzo && (
         <div className="fixed inset-0 z-20 flex items-center justify-center p-4" style={{ background: 'rgba(45,34,48,0.4)' }}>
           <form onSubmit={confirmarAlmuerzo} className="card p-5 w-full max-w-sm space-y-3" style={{ background: 'var(--color-surface)' }}>
-            <h3 className="font-display text-lg">Bloquear almuerzo</h3>
+            <h3 className="font-display text-lg">{almuerzoEditandoId ? 'Editar almuerzo' : 'Bloquear almuerzo'}</h3>
             <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Elige tu horario de almuerzo. Máximo 1 hora.</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -453,8 +496,8 @@ export default function MiCalendario() {
             </div>
             {status && <p className="text-sm" style={{ color: 'var(--color-danger)' }}>{status}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="submit" className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: 'var(--color-primary)' }}>Bloquear</button>
-              <button type="button" onClick={() => setMostrarFormAlmuerzo(false)} className="rounded-lg px-4 py-2 text-sm font-medium" style={{ border: '1px solid var(--color-border)' }}>Cancelar</button>
+              <button type="submit" className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: 'var(--color-primary)' }}>{almuerzoEditandoId ? 'Guardar cambios' : 'Bloquear'}</button>
+              <button type="button" onClick={() => { setMostrarFormAlmuerzo(false); setAlmuerzoEditandoId(null) }} className="rounded-lg px-4 py-2 text-sm font-medium" style={{ border: '1px solid var(--color-border)' }}>Cancelar</button>
             </div>
           </form>
         </div>
