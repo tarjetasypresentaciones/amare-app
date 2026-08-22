@@ -11,6 +11,7 @@ const METODOS = [
 ]
 
 const MAX_OBSERVACION = 100
+const LINEA_VACIA = { tipo_servicio_id: '', tipo_servicio: '', porcentaje: '', porcentajeAuto: false }
 
 export default function RegistrarServicio() {
   const { profile, isAdmin } = useAuth()
@@ -18,18 +19,18 @@ export default function RegistrarServicio() {
   const [tipos, setTipos] = useState([])
   const [clientes, setClientes] = useState([])
   const [vinculos, setVinculos] = useState([]) // servicios_manicurista: % específico por servicio+manicurista
+
   const [form, setForm] = useState({
     fecha: todayISO(),
     manicurista_id: isAdmin ? '' : profile?.manicurista_id ?? '',
     cliente_id: '',
-    tipo_servicio_id: '',
-    tipo_servicio: '',
-    porcentaje: '',
-    porcentajeAuto: false, // true si el % vino de servicios_manicurista (para diferenciarlo del % por defecto)
     costoAdicional: '',
     observaciones: '',
     metodo_pago: 'efectivo',
   })
+  // Uno o más tipos de servicio realizados en este mismo registro (ej: manicure + pedicure a la misma clienta)
+  const [lineas, setLineas] = useState([{ ...LINEA_VACIA }])
+
   const [status, setStatus] = useState({ type: '', msg: '' })
   const [saving, setSaving] = useState(false)
 
@@ -72,51 +73,73 @@ export default function RegistrarServicio() {
   const buscarPorcentajeEspecifico = (tipoServicioId, manicuristaId) =>
     vinculos.find((v) => v.tipo_servicio_id === tipoServicioId && v.manicurista_id === manicuristaId)?.porcentaje
 
-  // Al elegir manicurista, buscar el % específico para el servicio ya elegido; si no hay, usar su % por defecto
+  // Al elegir manicurista, recalcular el % de CADA línea de servicio ya elegida
   const handleManicuristaChange = (id) => {
     const m = manicuristas.find((x) => x.id === id)
-    const especifico = buscarPorcentajeEspecifico(form.tipo_servicio_id, id)
-    setForm((f) => ({
-      ...f,
-      manicurista_id: id,
-      porcentaje: especifico ?? m?.porcentaje_default ?? f.porcentaje,
-      porcentajeAuto: especifico !== undefined,
-    }))
+    setForm((f) => ({ ...f, manicurista_id: id }))
+    setLineas((prev) =>
+      prev.map((l) => {
+        if (!l.tipo_servicio_id) return l
+        const especifico = buscarPorcentajeEspecifico(l.tipo_servicio_id, id)
+        return { ...l, porcentaje: especifico ?? m?.porcentaje_default ?? l.porcentaje, porcentajeAuto: especifico !== undefined }
+      })
+    )
   }
 
-  const handleTipoChange = (tipoServicioId) => {
+  const handleTipoChange = (index, tipoServicioId) => {
     const t = tipos.find((x) => x.id === tipoServicioId)
+    const m = manicuristas.find((x) => x.id === form.manicurista_id)
     const especifico = buscarPorcentajeEspecifico(tipoServicioId, form.manicurista_id)
-    setForm((f) => ({
-      ...f,
-      tipo_servicio_id: tipoServicioId,
-      tipo_servicio: t?.nombre ?? '',
-      porcentaje: especifico ?? f.porcentaje,
-      porcentajeAuto: especifico !== undefined,
-    }))
+    setLineas((prev) =>
+      prev.map((l, i) =>
+        i === index
+          ? {
+              tipo_servicio_id: tipoServicioId,
+              tipo_servicio: t?.nombre ?? '',
+              porcentaje: especifico ?? m?.porcentaje_default ?? l.porcentaje,
+              porcentajeAuto: especifico !== undefined,
+            }
+          : l
+      )
+    )
   }
 
-  // El precio base viene siempre del tipo de servicio elegido — ya no se puede escribir a mano
-  const tipoSeleccionado = tipos.find((t) => t.id === form.tipo_servicio_id)
-  const costoBaseNum = tipoSeleccionado?.precio_sugerido ? Number(tipoSeleccionado.precio_sugerido) : 0
+  const agregarLinea = () => setLineas((prev) => [...prev, { ...LINEA_VACIA }])
+  const quitarLinea = (index) => setLineas((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev))
+
+  // El precio base de cada línea viene siempre del tipo de servicio elegido — no se puede escribir a mano
+  const lineasConDatos = lineas.map((l) => {
+    const t = tipos.find((x) => x.id === l.tipo_servicio_id)
+    return { ...l, precio: t?.precio_sugerido ? Number(t.precio_sugerido) : 0 }
+  })
+  const costoBaseNum = lineasConDatos.reduce((sum, l) => sum + l.precio, 0)
   const costoAdicionalNum = parseFloat(form.costoAdicional) || 0
   const costoTotalNum = costoBaseNum + costoAdicionalNum
-  const porcentajeNum = parseFloat(form.porcentaje) || 0
-  const pagadoPreview = Math.round((costoTotalNum * porcentajeNum) / 100)
+  // El costo adicional (y su comisión) se suma dentro de la primera línea de servicio
+  const pagadoPreview = lineasConDatos.reduce((sum, l, i) => {
+    const costoLinea = l.precio + (i === 0 ? costoAdicionalNum : 0)
+    const pct = parseFloat(l.porcentaje) || 0
+    return sum + Math.round((costoLinea * pct) / 100)
+  }, 0)
   const requiereObservacion = costoAdicionalNum > 0
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setStatus({ type: '', msg: '' })
 
-    if (!form.manicurista_id || !form.tipo_servicio_id || form.porcentaje === '') {
-      setStatus({ type: 'error', msg: 'Completa manicurista, servicio y porcentaje.' })
+    if (!form.manicurista_id) {
+      setStatus({ type: 'error', msg: 'Elige la manicurista.' })
       return
     }
-    if (costoTotalNum <= 0) {
+    if (lineas.some((l) => !l.tipo_servicio_id || l.porcentaje === '')) {
+      setStatus({ type: 'error', msg: 'Completa el tipo de servicio en cada línea.' })
+      return
+    }
+    const lineaSinPrecio = lineasConDatos.find((l) => l.precio <= 0)
+    if (lineaSinPrecio) {
       setStatus({
         type: 'error',
-        msg: 'Este tipo de servicio no tiene un precio configurado. Ve a "Tipos de servicio" y agrégale un precio.',
+        msg: `"${lineaSinPrecio.tipo_servicio}" no tiene un precio configurado. Ve a "Tipos de servicio" y agrégale un precio.`,
       })
       return
     }
@@ -128,20 +151,24 @@ export default function RegistrarServicio() {
     setSaving(true)
     const { data: userData } = await supabase.auth.getUser()
     const cliente = clientes.find((c) => c.id === form.cliente_id)
-    const { error } = await supabase.from('registros_servicios').insert({
+    const clienteNombre = cliente ? `${cliente.nombre} ${cliente.apellido}` : null
+
+    const filas = lineasConDatos.map((l, i) => ({
       fecha: form.fecha,
       manicurista_id: form.manicurista_id,
       cliente_id: form.cliente_id || null,
-      cliente_nombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : null,
-      tipo_servicio_id: form.tipo_servicio_id,
-      tipo_servicio: form.tipo_servicio,
-      costo: costoTotalNum,
-      costo_adicional: costoAdicionalNum,
-      observaciones: form.observaciones.trim() || null,
-      porcentaje: porcentajeNum,
+      cliente_nombre: clienteNombre,
+      tipo_servicio_id: l.tipo_servicio_id,
+      tipo_servicio: l.tipo_servicio,
+      costo: l.precio + (i === 0 ? costoAdicionalNum : 0),
+      costo_adicional: i === 0 ? costoAdicionalNum : 0,
+      observaciones: i === 0 ? form.observaciones.trim() || null : null,
+      porcentaje: parseFloat(l.porcentaje) || 0,
       metodo_pago: form.metodo_pago,
       created_by: userData?.user?.id,
-    })
+    }))
+
+    const { error } = await supabase.from('registros_servicios').insert(filas)
     setSaving(false)
 
     if (error) {
@@ -149,17 +176,10 @@ export default function RegistrarServicio() {
       return
     }
 
-    setStatus({ type: 'success', msg: `Servicio guardado. Se le paga ${currency(pagadoPreview)} a la manicurista.` })
-    setForm((f) => ({
-      ...f,
-      cliente_id: '',
-      tipo_servicio_id: '',
-      tipo_servicio: '',
-      porcentaje: isAdmin ? '' : f.porcentaje,
-      porcentajeAuto: false,
-      costoAdicional: '',
-      observaciones: '',
-    }))
+    const plural = filas.length > 1 ? `${filas.length} servicios guardados` : 'Servicio guardado'
+    setStatus({ type: 'success', msg: `${plural}. Se le paga ${currency(pagadoPreview)} a la manicurista.` })
+    setForm((f) => ({ ...f, cliente_id: '', costoAdicional: '', observaciones: '' }))
+    setLineas([{ ...LINEA_VACIA }])
   }
 
   return (
@@ -230,19 +250,56 @@ export default function RegistrarServicio() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Tipo de servicio</label>
-          <select
-            required
-            value={form.tipo_servicio_id}
-            onChange={(e) => handleTipoChange(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ borderColor: 'var(--color-border)' }}
-          >
-            <option value="">Selecciona…</option>
-            {tipos.map((t) => (
-              <option key={t.id} value={t.id}>{t.nombre}</option>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium">Tipo(s) de servicio</label>
+            {lineas.length > 1 && (
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{lineas.length} servicios</span>
+            )}
+          </div>
+          <div className="space-y-2">
+            {lineas.map((linea, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <select
+                  required
+                  value={linea.tipo_servicio_id}
+                  onChange={(e) => handleTipoChange(index, e.target.value)}
+                  className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <option value="">Selecciona…</option>
+                  {tipos.map((t) => (
+                    <option key={t.id} value={t.id}>{t.nombre}</option>
+                  ))}
+                </select>
+                <span
+                  className="text-xs font-mono-num w-14 shrink-0 text-center rounded-lg py-2"
+                  style={{ background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}
+                  title={linea.porcentajeAuto ? 'Porcentaje automático' : ''}
+                >
+                  {linea.porcentaje === '' ? '—' : `${linea.porcentaje}%`}
+                </span>
+                {lineas.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => quitarLinea(index)}
+                    className="shrink-0 rounded-lg px-2.5 py-2 text-sm font-medium"
+                    style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
+                    title="Quitar este servicio"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             ))}
-          </select>
+          </div>
+          <button
+            type="button"
+            onClick={agregarLinea}
+            className="mt-2 text-xs font-medium rounded-full px-3 py-1.5"
+            style={{ border: '1px solid var(--color-border)' }}
+          >
+            + Agregar otro servicio
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -277,42 +334,25 @@ export default function RegistrarServicio() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Costo (COP)</label>
-            <input
-              type="text"
-              readOnly
-              disabled
-              value={currency(costoTotalNum)}
-              className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num cursor-not-allowed"
-              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}
-            />
-            {costoAdicionalNum > 0 && (
-              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                {currency(costoBaseNum)} del servicio + {currency(costoAdicionalNum)} adicional
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              % para manicurista
-              {form.porcentajeAuto && (
-                <span className="ml-1 text-xs font-normal" style={{ color: 'var(--color-success)' }}>
-                  (automático)
-                </span>
-              )}
-            </label>
-            <input
-              type="text"
-              readOnly
-              disabled
-              value={form.porcentaje === '' ? '' : `${form.porcentaje}%`}
-              className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num cursor-not-allowed"
-              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}
-              placeholder="Elige manicurista y servicio"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Costo (COP)</label>
+          <input
+            type="text"
+            readOnly
+            disabled
+            value={currency(costoTotalNum)}
+            className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num cursor-not-allowed"
+            style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-muted)' }}
+          />
+          {lineasConDatos.some((l) => l.precio > 0) && (
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              {lineasConDatos
+                .filter((l) => l.tipo_servicio)
+                .map((l) => `${l.tipo_servicio} (${currency(l.precio)})`)
+                .join(' + ')}
+              {costoAdicionalNum > 0 && ` + ${currency(costoAdicionalNum)} adicional`}
+            </p>
+          )}
         </div>
 
         <div
