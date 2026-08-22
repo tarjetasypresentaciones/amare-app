@@ -7,6 +7,7 @@ const METODOS = [
   { value: 'efectivo', label: 'Efectivo' },
   { value: 'tarjeta', label: 'Tarjeta' },
   { value: 'transferencia', label: 'Transferencia' },
+  { value: 'llave_bre_b', label: 'Llave Bre-B' },
   { value: 'otro', label: 'Otro' },
 ]
 
@@ -122,6 +123,13 @@ export default function RegistrarServicio() {
     return sum + Math.round((costoLinea * pct) / 100)
   }, 0)
   const requiereObservacion = costoAdicionalNum > 0
+
+  const puedeGuardar =
+    !!form.manicurista_id &&
+    !!form.metodo_pago &&
+    lineas.every((l) => !!l.tipo_servicio_id) &&
+    !(requiereObservacion && !form.observaciones.trim()) &&
+    costoTotalNum > 0
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -378,9 +386,9 @@ export default function RegistrarServicio() {
 
         <button
           type="submit"
-          disabled={saving}
-          className="w-full rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: 'var(--color-primary)' }}
+          disabled={saving || !puedeGuardar}
+          className="w-full rounded-lg py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed"
+          style={{ background: puedeGuardar ? 'var(--color-primary)' : '#B0B0B0' }}
         >
           {saving ? 'Guardando…' : 'Guardar servicio'}
         </button>
