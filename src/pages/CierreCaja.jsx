@@ -153,7 +153,26 @@ export default function CierreCaja() {
     await cargar()
   }
 
-  if (loading && !config) return <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
+  const marcarSinDeposito = async () => {
+    if (!window.confirm('¿Confirmas que no hubo depósito bancario este día? Se guardará como $0.')) return
+    setGuardandoDeposito(true)
+    setStatus('')
+    await asegurarCierre()
+    const { error } = await supabase
+      .from('cierres_caja')
+      .update({
+        deposito_bancario: 0,
+        deposito_bancario_foto_url: null,
+        deposito_bancario_guardado_at: new Date().toISOString(),
+      })
+      .eq('fecha', fecha)
+    setGuardandoDeposito(false)
+    if (error) {
+      setStatus('Error guardando: ' + error.message)
+      return
+    }
+    await cargar()
+  }
 
   const estadoLabel = {
     pendiente: { text: 'Pendiente de confirmar', bg: 'var(--color-danger-soft)', fg: 'var(--color-danger)' },
@@ -210,9 +229,9 @@ export default function CierreCaja() {
           }}
         >
           <span
-            className="absolute top-1 w-5 h-5 rounded-full bg-white transition-transform"
+            className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition-transform"
             style={{
-              transform: config?.requiere_confirmacion_cierre ? 'translateX(22px)' : 'translateX(4px)',
+              transform: config?.requiere_confirmacion_cierre ? 'translateX(20px)' : 'translateX(0)',
               boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
             }}
           />
@@ -316,7 +335,11 @@ export default function CierreCaja() {
           {depositoGuardado ? (
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="font-mono-num text-lg font-semibold">{currency(cierre.deposito_bancario)}</p>
+                {cierre.deposito_bancario > 0 ? (
+                  <p className="font-mono-num text-lg font-semibold">{currency(cierre.deposito_bancario)}</p>
+                ) : (
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>Sin depósito este día</p>
+                )}
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   Guardado {dateTimeShort(cierre.deposito_bancario_guardado_at)}
                 </p>
@@ -366,6 +389,14 @@ export default function CierreCaja() {
                 style={{ borderColor: 'var(--color-border)' }}
               >
                 {depositoArchivo ? `📷 ${depositoArchivo.name}` : '📷 Subir foto del comprobante'}
+              </button>
+              <button
+                onClick={marcarSinDeposito}
+                disabled={guardandoDeposito}
+                className="text-xs font-medium underline block mt-2 disabled:opacity-60"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                No hubo depósito bancario este día
               </button>
             </>
           )}
