@@ -168,6 +168,10 @@ export default function MiCalendario() {
       setStatus('El almuerzo no puede durar más de 1 hora.')
       return
     }
+    if (esHoyVista && inicio <= minutosAhora()) {
+      setStatus('No puedes marcar almuerzo en una hora que ya pasó.')
+      return
+    }
     const { error } = await supabase.from('franjas_bloqueadas').insert({
       manicurista_id: manicuristaId,
       fecha: iso,
