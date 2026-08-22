@@ -235,13 +235,13 @@ export default function CalendarioAdmin() {
       alert('No encontré ningún motivo activo en el catálogo de "Motivos" en Supabase, así que no puedo bloquear el día. Avísame para revisarlo.')
       return
     }
-    const { error } = await supabase.from('dias_libres_manicurista').insert({
+    const { error } = await supabase.from('dias_libres_manicurista').upsert({
       manicurista_id: manicuristaId,
       fecha: iso,
       motivo_id: motivo.id,
       estado: 'aprobado',
       observacion_admin: 'Asignado directamente por admin (fin de semana)',
-    })
+    }, { onConflict: 'manicurista_id,fecha' })
     if (error) {
       alert('No se pudo bloquear el día: ' + error.message)
       return
