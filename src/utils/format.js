@@ -31,6 +31,25 @@ const aFechaLocalISO = (date) => {
 
 export const todayISO = () => aFechaLocalISO(new Date())
 
+// Suma (o resta, con delta negativo) días a una fecha ISO, en hora local
+export const addDaysISO = (isoDate, delta) => {
+  const d = new Date(isoDate + 'T00:00:00')
+  d.setDate(d.getDate() + delta)
+  return aFechaLocalISO(d)
+}
+
+// Formatea un timestamp completo (con hora) tipo "sáb 22-08-2026 10:15 a. m."
+export const dateTimeShort = (isoTimestamp) => {
+  if (!isoTimestamp) return ''
+  const d = new Date(isoTimestamp)
+  const dia = String(d.getDate()).padStart(2, '0')
+  const mes = String(d.getMonth() + 1).padStart(2, '0')
+  const anio = d.getFullYear()
+  const diaSemana = new Intl.DateTimeFormat('es-CO', { weekday: 'short' }).format(d)
+  const hora = new Intl.DateTimeFormat('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }).format(d)
+  return `${diaSemana} ${dia}-${mes}-${anio} ${hora}`
+}
+
 // Lunes como inicio de semana (ISO)
 export const startOfWeekISO = (isoDate) => {
   const d = new Date(isoDate + 'T00:00:00')
