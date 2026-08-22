@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { currency, longDate, shortDate, todayISO, addDaysISO, dateTimeShort } from '../utils/format'
+import { currency, longDate, shortDate, todayISO, addDaysISO, dateTimeShort, startOfWeekISO } from '../utils/format'
 
 const BUCKET_FOTOS_CIERRE = 'fotos-cierres'
 
@@ -28,10 +28,25 @@ export default function CierreCaja() {
   const cargar = async () => {
     setLoading(true)
     const fechaAnterior = addDaysISO(fecha, -1)
+
+    // Rango del historial "Cierres de la semana": solo días ya completos.
+    // Si hoy es lunes (todavía no hay ningún día completo de esta semana),
+    // se muestra la semana pasada completa (lunes a domingo).
+    const hoy = todayISO()
+    const inicioSemanaActual = startOfWeekISO(hoy)
+    let inicioHistorial, finHistorial
+    if (inicioSemanaActual === hoy) {
+      inicioHistorial = addDaysISO(inicioSemanaActual, -7)
+      finHistorial = addDaysISO(inicioSemanaActual, -1)
+    } else {
+      inicioHistorial = inicioSemanaActual
+      finHistorial = addDaysISO(hoy, -1)
+    }
+
     const [{ data: c }, { data: cAnt }, { data: h }, { data: cfg }] = await Promise.all([
       supabase.from('cierres_caja').select('*').eq('fecha', fecha).maybeSingle(),
       supabase.from('cierres_caja').select('efectivo_caja_siguiente').eq('fecha', fechaAnterior).maybeSingle(),
-      supabase.from('cierres_caja').select('*').order('fecha', { ascending: false }).limit(14),
+      supabase.from('cierres_caja').select('*').gte('fecha', inicioHistorial).lte('fecha', finHistorial).order('fecha', { ascending: false }),
       supabase.from('configuracion').select('*').eq('id', 1).single(),
     ])
     setCierre(c)
@@ -68,6 +83,11 @@ export default function CierreCaja() {
   const cambiarConfig = async (valor) => {
     await supabase.from('configuracion').update({ requiere_confirmacion_cierre: valor }).eq('id', 1)
     setConfig((c) => ({ ...c, requiere_confirmacion_cierre: valor }))
+    // Recalcula el cierre del día que se está viendo para que su estado
+    // (pendiente / cerrado automáticamente) refleje el nuevo ajuste al instante,
+    // sin necesidad de recargar la página.
+    await supabase.rpc('generar_cierre_dia', { p_fecha: fecha })
+    await cargar()
   }
 
   // Asegura que exista una fila en cierres_caja para `fecha` antes de
@@ -499,24 +519,46 @@ export default function CierreCaja() {
       </div>
 
       <div className="card divide-y" style={{ borderColor: 'var(--color-border)' }}>
-        <p className="px-4 py-3 text-sm font-semibold">Últimos cierres</p>
+        <p className="px-4 py-3 text-sm font-semibold">Cierres de la semana</p>
+        {historial.length === 0 && (
+          <p className="px-4 py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Aún no hay cierres completos esta semana.
+          </p>
+        )}
         {historial.map((h) => (
           <button
             key={h.id}
             onClick={() => setFecha(h.fecha)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-left hover:bg-black/5"
+            className="w-full text-left px-4 py-3 hover:bg-black/5"
           >
-            <span>
-              {shortDate(h.fecha)}
-              {h.deposito_bancario_foto_url && <span className="ml-1">📷</span>}
-            </span>
-            <span className="font-mono-num">{currency(h.total_neto_spa)}</span>
-            <span
-              className="text-xs font-medium rounded-full px-2 py-0.5"
-              style={{ background: estadoLabel[h.estado].bg, color: estadoLabel[h.estado].fg }}
-            >
-              {estadoLabel[h.estado].text}
-            </span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">
+                {shortDate(h.fecha)}
+                {h.deposito_bancario_foto_url && <span className="ml-1">📷</span>}
+              </span>
+              <span
+                className="text-xs font-medium rounded-full px-2 py-0.5"
+                style={{ background: estadoLabel[h.estado].bg, color: estadoLabel[h.estado].fg }}
+              >
+                {estadoLabel[h.estado].text}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Ingresos</p>
+                <p className="font-mono-num text-xs font-semibold">{currency(h.total_ingresos)}</p>
+              </div>
+              <div>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Pagado</p>
+                <p className="font-mono-num text-xs font-semibold">{currency(h.total_pagado_manicuristas)}</p>
+              </div>
+              <div>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Neto spa</p>
+                <p className="font-mono-num text-xs font-semibold" style={{ color: 'var(--color-success)' }}>
+                  {currency(h.total_neto_spa)}
+                </p>
+              </div>
+            </div>
           </button>
         ))}
       </div>
