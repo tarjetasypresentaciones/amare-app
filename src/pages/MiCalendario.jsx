@@ -27,6 +27,9 @@ export default function MiCalendario() {
   const [mostrarFormFranja, setMostrarFormFranja] = useState(false)
   const [formFranja, setFormFranja] = useState({ hora_inicio: '13:00', hora_fin: '14:00' })
 
+  const [mostrarFormAlmuerzo, setMostrarFormAlmuerzo] = useState(false)
+  const [formAlmuerzo, setFormAlmuerzo] = useState({ hora_inicio: '13:00', hora_fin: '14:00' })
+
   const iso = fechaISO(fecha)
   const esHoyVista = esHoy(fecha)
 
@@ -152,16 +155,32 @@ export default function MiCalendario() {
     cargarDia()
   }
 
-  const bloquearAlmuerzo = async (horaInicio, horaFin) => {
+  const confirmarAlmuerzo = async (e) => {
+    e.preventDefault()
+    setStatus('')
+    const inicio = textoAMinutos(formAlmuerzo.hora_inicio)
+    const fin = textoAMinutos(formAlmuerzo.hora_fin)
+    if (!formAlmuerzo.hora_inicio || !formAlmuerzo.hora_fin || fin <= inicio) {
+      setStatus('La hora de salida del almuerzo debe ser después de la hora de entrada.')
+      return
+    }
+    if (fin - inicio > 60) {
+      setStatus('El almuerzo no puede durar más de 1 hora.')
+      return
+    }
     const { error } = await supabase.from('franjas_bloqueadas').insert({
       manicurista_id: manicuristaId,
       fecha: iso,
-      hora_inicio: horaInicio,
-      hora_fin: horaFin,
+      hora_inicio: formAlmuerzo.hora_inicio,
+      hora_fin: formAlmuerzo.hora_fin,
       tipo: 'almuerzo',
       estado: 'aprobado',
     })
-    if (error) setStatus('Error: ' + error.message)
+    if (error) {
+      setStatus('Error: ' + error.message)
+      return
+    }
+    setMostrarFormAlmuerzo(false)
     cargarDia()
   }
 
@@ -213,11 +232,11 @@ export default function MiCalendario() {
         </button>
         {!yaTieneAlmuerzo && (
           <button
-            onClick={() => bloquearAlmuerzo('13:00', '14:00')}
+            onClick={() => { setStatus(''); setMostrarFormAlmuerzo(true) }}
             className="text-xs font-medium rounded-full px-3 py-1.5"
             style={{ border: '1px solid var(--color-border)' }}
           >
-            🍽️ Bloquear almuerzo (13:00–14:00)
+            🍽️ Bloquear almuerzo
           </button>
         )}
         <button
@@ -396,6 +415,42 @@ export default function MiCalendario() {
             <div className="flex gap-2 pt-1">
               <button type="submit" className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: 'var(--color-primary)' }}>Enviar solicitud</button>
               <button type="button" onClick={() => setMostrarFormFranja(false)} className="rounded-lg px-4 py-2 text-sm font-medium" style={{ border: '1px solid var(--color-border)' }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {/* Modal: bloquear almuerzo (máximo 1 hora, a la hora que la manicurista elija) */}
+      {mostrarFormAlmuerzo && (
+        <div className="fixed inset-0 z-20 flex items-center justify-center p-4" style={{ background: 'rgba(45,34,48,0.4)' }}>
+          <form onSubmit={confirmarAlmuerzo} className="card p-5 w-full max-w-sm space-y-3" style={{ background: 'var(--color-surface)' }}>
+            <h3 className="font-display text-lg">Bloquear almuerzo</h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Elige tu horario de almuerzo. Máximo 1 hora.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1">Desde</label>
+                <input
+                  type="time"
+                  value={formAlmuerzo.hora_inicio}
+                  onChange={(e) => setFormAlmuerzo({ ...formAlmuerzo, hora_inicio: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  style={{ borderColor: 'var(--color-border)' }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Hasta</label>
+                <input
+                  type="time"
+                  value={formAlmuerzo.hora_fin}
+                  onChange={(e) => setFormAlmuerzo({ ...formAlmuerzo, hora_fin: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  style={{ borderColor: 'var(--color-border)' }}
+                />
+              </div>
+            </div>
+            {status && <p className="text-sm" style={{ color: 'var(--color-danger)' }}>{status}</p>}
+            <div className="flex gap-2 pt-1">
+              <button type="submit" className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: 'var(--color-primary)' }}>Bloquear</button>
+              <button type="button" onClick={() => setMostrarFormAlmuerzo(false)} className="rounded-lg px-4 py-2 text-sm font-medium" style={{ border: '1px solid var(--color-border)' }}>Cancelar</button>
             </div>
           </form>
         </div>

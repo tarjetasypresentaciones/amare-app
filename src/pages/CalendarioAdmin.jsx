@@ -26,6 +26,7 @@ export default function CalendarioAdmin() {
   const [diasLibres, setDiasLibres] = useState([])
   const [franjas, setFranjas] = useState([])
   const [solicitudesPendientes, setSolicitudesPendientes] = useState({ dias: [], franjas: [] })
+  const [motivos, setMotivos] = useState([])
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
 
@@ -101,6 +102,9 @@ export default function CalendarioAdmin() {
   }
 
   useEffect(cargarCatalogos, [])
+  useEffect(() => {
+    supabase.from('motivos').select('id, nombre').eq('activo', true).then(({ data }) => setMotivos(data ?? []))
+  }, [])
   useEffect(cargarDia, [iso])
   useEffect(cargarSolicitudesPendientes, [])
 
@@ -188,20 +192,32 @@ export default function CalendarioAdmin() {
   }
 
   const resolverDiaLibre = async (id, estado, observacion_admin = null) => {
-    await supabase.from('dias_libres_manicurista').update({ estado, observacion_admin }).eq('id', id)
+    const { error } = await supabase.from('dias_libres_manicurista').update({ estado, observacion_admin }).eq('id', id)
+    if (error) {
+      alert('No se pudo actualizar la solicitud: ' + error.message)
+      return
+    }
     cargarDia()
     cargarSolicitudesPendientes()
   }
 
   const resolverFranja = async (id, estado, observacion_admin = null) => {
-    await supabase.from('franjas_bloqueadas').update({ estado, observacion_admin }).eq('id', id)
+    const { error } = await supabase.from('franjas_bloqueadas').update({ estado, observacion_admin }).eq('id', id)
+    if (error) {
+      alert('No se pudo actualizar la solicitud: ' + error.message)
+      return
+    }
     cargarDia()
     cargarSolicitudesPendientes()
   }
 
   const desbloquearDiaLibre = async (diaLibreId) => {
     if (!confirm('¿Desbloquear este día? La manicurista volverá a estar disponible.')) return
-    await supabase.from('dias_libres_manicurista').update({ estado: 'rechazado', observacion_admin: 'Desbloqueado por admin' }).eq('id', diaLibreId)
+    const { error } = await supabase.from('dias_libres_manicurista').update({ estado: 'rechazado', observacion_admin: 'Desbloqueado por admin' }).eq('id', diaLibreId)
+    if (error) {
+      alert('No se pudo desbloquear el día: ' + error.message)
+      return
+    }
     cargarDia()
   }
 
@@ -214,14 +230,22 @@ export default function CalendarioAdmin() {
 
   const asignarDiaLibreFinde = async (manicuristaId) => {
     if (!esFinDeSemana(fecha)) return
-    const { data: motivos } = await supabase.from('motivos').select('id').eq('nombre', 'Día libre').single()
-    await supabase.from('dias_libres_manicurista').insert({
+    const motivo = motivos.find((m) => m.nombre.toLowerCase().includes('libre')) ?? motivos[0]
+    if (!motivo) {
+      alert('No encontré ningún motivo activo en el catálogo de "Motivos" en Supabase, así que no puedo bloquear el día. Avísame para revisarlo.')
+      return
+    }
+    const { error } = await supabase.from('dias_libres_manicurista').insert({
       manicurista_id: manicuristaId,
       fecha: iso,
-      motivo_id: motivos?.id,
+      motivo_id: motivo.id,
       estado: 'aprobado',
       observacion_admin: 'Asignado directamente por admin (fin de semana)',
     })
+    if (error) {
+      alert('No se pudo bloquear el día: ' + error.message)
+      return
+    }
     cargarDia()
   }
 
