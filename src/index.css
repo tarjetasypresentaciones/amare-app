@@ -72,3 +72,40 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 1rem;
 }
+
+/* ------------------------------------------------------------
+   Recibo de impresión (impresora térmica de 58mm)
+   El recibo vive siempre en el DOM pero oculto (display: none).
+   Al imprimir, se oculta todo lo demás y solo se muestra el
+   recibo, ajustado al ancho del papel térmico.
+   ------------------------------------------------------------ */
+.recibo-impresion {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: 58mm auto;
+    margin: 0;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .recibo-impresion,
+  .recibo-impresion * {
+    visibility: visible;
+  }
+  .recibo-impresion {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 58mm;
+    padding: 2mm;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.4;
+    color: #000;
+  }
+}
+
