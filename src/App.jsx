@@ -13,6 +13,7 @@ import ServiciosManicurista from './pages/ServiciosManicurista'
 import TiposServicio from './pages/TiposServicio'
 import CalendarioAdmin from './pages/CalendarioAdmin'
 import MiCalendario from './pages/MiCalendario'
+import Gastos from './pages/Gastos'
 
 function Protected({ children, adminOnly = false }) {
   const { session, profile, loading } = useAuth()
@@ -49,6 +50,7 @@ function AppRoutes() {
       <Route path="/servicios-manicurista" element={<Protected adminOnly><ServiciosManicurista /></Protected>} />
       <Route path="/tipos-servicio" element={<Protected adminOnly><TiposServicio /></Protected>} />
       <Route path="/cierre" element={<Protected adminOnly><CierreCaja /></Protected>} />
+      <Route path="/gastos" element={<Protected adminOnly><Gastos /></Protected>} />
       <Route path="/mis-ingresos" element={<Protected><MisIngresos /></Protected>} />
       <Route path="*" element={<Navigate to={homePath} replace />} />
     </Routes>
