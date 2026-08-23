@@ -475,7 +475,7 @@ export default function CierreCaja() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Ingresos</p>
                 <p className="font-mono-num text-lg font-semibold">{currency(cierre.total_ingresos)}</p>
@@ -483,6 +483,14 @@ export default function CierreCaja() {
               <div>
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Pagado a manicuristas</p>
                 <p className="font-mono-num text-lg font-semibold">{currency(cierre.total_pagado_manicuristas)}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Gastos del día</p>
+                <p className="font-mono-num text-lg font-semibold" style={{ color: 'var(--color-danger)' }}>
+                  {currency(cierre.total_gastos ?? 0)}
+                </p>
               </div>
               <div>
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Neto spa</p>
@@ -543,7 +551,7 @@ export default function CierreCaja() {
                 {estadoLabel[h.estado].text}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-4 gap-2 text-center">
               <div>
                 <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Ingresos</p>
                 <p className="font-mono-num text-xs font-semibold">{currency(h.total_ingresos)}</p>
@@ -551,6 +559,12 @@ export default function CierreCaja() {
               <div>
                 <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Pagado</p>
                 <p className="font-mono-num text-xs font-semibold">{currency(h.total_pagado_manicuristas)}</p>
+              </div>
+              <div>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Gastos</p>
+                <p className="font-mono-num text-xs font-semibold" style={{ color: 'var(--color-danger)' }}>
+                  {currency(h.total_gastos ?? 0)}
+                </p>
               </div>
               <div>
                 <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Neto spa</p>
