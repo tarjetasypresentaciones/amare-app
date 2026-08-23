@@ -17,7 +17,7 @@ const MAX_OBSERVACION = 100
 const LINEA_VACIA = { tipo_servicio_id: '', tipo_servicio: '', porcentaje: '', porcentajeAuto: false }
 
 export default function RegistrarServicio() {
-  const { profile, isAdmin } = useAuth()
+  const { profile, puedeOperar } = useAuth()
   const [manicuristas, setManicuristas] = useState([])
   const [tipos, setTipos] = useState([])
   const [clientes, setClientes] = useState([])
@@ -25,7 +25,7 @@ export default function RegistrarServicio() {
 
   const [form, setForm] = useState({
     fecha: todayISO(),
-    manicurista_id: isAdmin ? '' : profile?.manicurista_id ?? '',
+    manicurista_id: puedeOperar ? '' : profile?.manicurista_id ?? '',
     cliente_id: '',
     costoAdicional: '',
     observaciones: '',
@@ -69,10 +69,10 @@ export default function RegistrarServicio() {
   }, [])
 
   useEffect(() => {
-    if (!isAdmin && profile?.manicurista_id) {
+    if (!puedeOperar && profile?.manicurista_id) {
       setForm((f) => ({ ...f, manicurista_id: profile.manicurista_id }))
     }
-  }, [isAdmin, profile])
+  }, [puedeOperar, profile])
 
   // Busca si hay un % específico configurado para esta combinación de servicio + manicurista
   const buscarPorcentajeEspecifico = (tipoServicioId, manicuristaId) =>
@@ -279,7 +279,7 @@ export default function RegistrarServicio() {
           </div>
         </div>
 
-        {isAdmin && (
+        {puedeOperar && (
           <div>
             <label className="block text-sm font-medium mb-1">Manicurista</label>
             <select
