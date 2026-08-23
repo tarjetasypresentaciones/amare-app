@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { currency, longDate, shortDate, todayISO, addDaysISO, dateTimeShort, startOfWeekISO } from '../utils/format'
+import { useAuth } from '../lib/AuthContext'
 
 const BUCKET_FOTOS_CIERRE = 'fotos-cierres'
 
 export default function CierreCaja() {
+  const { profile } = useAuth()
   const [fecha, setFecha] = useState(todayISO())
   const [cierre, setCierre] = useState(null)
   const [cierreAnterior, setCierreAnterior] = useState(null)
@@ -109,11 +111,12 @@ export default function CierreCaja() {
     setStatus('')
     await asegurarCierre()
     const { data: userData } = await supabase.auth.getUser()
+    const ahora = new Date().toISOString()
     const { error } = await supabase
       .from('cierres_caja')
       .update({
         efectivo_apertura: monto,
-        efectivo_apertura_guardado_at: new Date().toISOString(),
+        efectivo_apertura_guardado_at: ahora,
         efectivo_apertura_guardado_por: userData?.user?.id,
       })
       .eq('fecha', fecha)
@@ -121,6 +124,21 @@ export default function CierreCaja() {
     if (error) {
       setStatus('Error guardando el efectivo de apertura: ' + error.message)
       return
+    }
+    // Si la apertura guardada no coincide con lo esperado (el cierre del
+    // día anterior), se avisa por correo a todos los admins. No bloquea
+    // el guardado si el correo falla — solo se registra en consola.
+    if (sugerenciaApertura != null && Math.round(monto) !== Math.round(sugerenciaApertura)) {
+      const diferencia = monto - sugerenciaApertura
+      supabase.functions
+        .invoke('notificar-diferencia-apertura', {
+          body: {
+            fecha_hora_texto: dateTimeShort(ahora),
+            diferencia,
+            nombre_usuario: profile?.nombre_completo ?? 'Usuario desconocido',
+          },
+        })
+        .catch((e) => console.error('No se pudo enviar el aviso de diferencia:', e))
     }
     await cargar()
   }
