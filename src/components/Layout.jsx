@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import Avatar from './Avatar'
+import AlertaAperturaCaja from './AlertaAperturaCaja'
 
 const ICONS = {
   registrar: '💅',
@@ -44,6 +45,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row" style={{ background: 'var(--color-bg)' }}>
+      {isAdmin && <AlertaAperturaCaja />}
       {/* Barra lateral — escritorio */}
       <aside
         className="hidden md:flex md:flex-col md:w-64 md:shrink-0 border-r"
