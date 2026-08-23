@@ -19,6 +19,13 @@ export default function CierreCaja() {
   const [aperturaInput, setAperturaInput] = useState('')
   const [guardandoApertura, setGuardandoApertura] = useState(false)
 
+  // --- Reconteo de apertura (cuando hay diferencia) ---
+  const [mostrarReconteo, setMostrarReconteo] = useState(false)
+  const [reconteoInput, setReconteoInput] = useState('')
+  const [reconteoObservacion, setReconteoObservacion] = useState('')
+  const [guardandoReconteo, setGuardandoReconteo] = useState(false)
+  const [statusReconteo, setStatusReconteo] = useState('')
+
   // --- Depósito bancario ---
   const [depositoMonto, setDepositoMonto] = useState('')
   const [depositoArchivo, setDepositoArchivo] = useState(null)
@@ -112,16 +119,11 @@ export default function CierreCaja() {
     setGuardandoApertura(true)
     setStatus('')
     await asegurarCierre()
-    const { data: userData } = await supabase.auth.getUser()
     const ahora = new Date().toISOString()
-    const { error } = await supabase
-      .from('cierres_caja')
-      .update({
-        efectivo_apertura: monto,
-        efectivo_apertura_guardado_at: ahora,
-        efectivo_apertura_guardado_por: userData?.user?.id,
-      })
-      .eq('fecha', fecha)
+    const { error } = await supabase.rpc('guardar_efectivo_apertura', {
+      p_fecha: fecha,
+      p_monto: monto,
+    })
     setGuardandoApertura(false)
     if (error) {
       setStatus('Error guardando el efectivo de apertura: ' + error.message)
@@ -142,6 +144,34 @@ export default function CierreCaja() {
         })
         .catch((e) => console.error('No se pudo enviar el aviso de diferencia:', e))
     }
+    await cargar()
+  }
+
+  const guardarReconteo = async () => {
+    const monto = parseFloat(reconteoInput)
+    if (isNaN(monto) || monto < 0) {
+      setStatusReconteo('Escribe un valor válido para el reconteo.')
+      return
+    }
+    if (!reconteoObservacion.trim()) {
+      setStatusReconteo('Escribe una observación explicando el reconteo.')
+      return
+    }
+    setGuardandoReconteo(true)
+    setStatusReconteo('')
+    const { error } = await supabase.rpc('guardar_reconteo_apertura', {
+      p_fecha: fecha,
+      p_monto: monto,
+      p_observacion: reconteoObservacion.trim(),
+    })
+    setGuardandoReconteo(false)
+    if (error) {
+      setStatusReconteo('Error guardando el reconteo: ' + error.message)
+      return
+    }
+    setMostrarReconteo(false)
+    setReconteoInput('')
+    setReconteoObservacion('')
     await cargar()
   }
 
@@ -231,13 +261,13 @@ export default function CierreCaja() {
     aperturaGuardada && sugerenciaApertura != null
       ? cierre.efectivo_apertura - sugerenciaApertura
       : 0
-  // Ajuste por diferencia de caja en apertura: signo invertido respecto
-  // a diferenciaApertura. Positivo cuando faltó dinero (se da por
-  // recuperable — la persona responsable lo repone), negativo cuando
-  // sobró. La base de datos ya suma este mismo ajuste al calcular
-  // "Efectivo en caja para el día siguiente", así que aquí solo se
-  // muestra de forma informativa, sin sumarlo de nuevo.
-  const ajustePorApertura = -diferenciaApertura
+  // Ajuste por diferencia de caja en apertura: siempre positivo cuando
+  // hay diferencia, sea falta o sobra — ambos casos se tratan como algo
+  // que suma al proyectado. Si falta, la base de datos suma ese mismo
+  // valor de vuelta (se da por recuperable). Si sobra, la base de datos
+  // ya no resta nada: el sobrante queda incluido de forma natural
+  // porque el cálculo usa el valor real contado en la apertura.
+  const ajustePorApertura = Math.abs(diferenciaApertura)
 
   const ingresosDetallado = [
     { label: 'Efectivo', valor: cierre?.ingreso_efectivo ?? 0 },
@@ -319,6 +349,82 @@ export default function CierreCaja() {
                   </p>
                 </div>
               )}
+
+              {/* Reconteo: solo aparece si hay diferencia */}
+              {diferenciaApertura !== 0 && !cierre.efectivo_apertura_reconteo && !mostrarReconteo && (
+                <button
+                  type="button"
+                  onClick={() => setMostrarReconteo(true)}
+                  className="text-sm font-medium mt-3"
+                  style={{ color: 'var(--color-primary)' }}
+                >
+                  🔁 Hacer reconteo
+                </button>
+              )}
+
+              {diferenciaApertura !== 0 && !cierre.efectivo_apertura_reconteo && mostrarReconteo && (
+                <div
+                  className="mt-3 rounded-lg p-3 space-y-2"
+                  style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+                >
+                  <p className="text-xs font-medium">Reconteo del efectivo de apertura</p>
+                  {statusReconteo && (
+                    <p className="text-xs" style={{ color: 'var(--color-danger)' }}>{statusReconteo}</p>
+                  )}
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={reconteoInput}
+                    onChange={(e) => setReconteoInput(e.target.value)}
+                    placeholder="Nuevo monto contado"
+                    className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num"
+                    style={{ borderColor: 'var(--color-border)' }}
+                  />
+                  <textarea
+                    value={reconteoObservacion}
+                    onChange={(e) => setReconteoObservacion(e.target.value)}
+                    placeholder="Observación: ¿qué pasó? (obligatorio)"
+                    rows={2}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    style={{ borderColor: 'var(--color-border)' }}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={guardarReconteo}
+                      disabled={guardandoReconteo}
+                      className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                      style={{ background: 'var(--color-primary)' }}
+                    >
+                      {guardandoReconteo ? 'Guardando…' : 'Guardar reconteo'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMostrarReconteo(false)
+                        setStatusReconteo('')
+                      }}
+                      className="rounded-lg px-4 py-2 text-sm font-medium"
+                      style={{ border: '1px solid var(--color-border)' }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {cierre.efectivo_apertura_reconteo != null && (
+                <div className="mt-3 rounded-lg p-3" style={{ background: 'var(--color-success-soft)' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--color-success)' }}>
+                    ✓ Reconteo hecho por {cierre.efectivo_apertura_reconteo_por_nombre} —{' '}
+                    {dateTimeShort(cierre.efectivo_apertura_reconteo_at)}
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                    Conteo original: {currency(cierre.efectivo_apertura_original)}
+                  </p>
+                  <p className="text-xs mt-1">{cierre.efectivo_apertura_reconteo_observacion}</p>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -347,6 +453,7 @@ export default function CierreCaja() {
             </>
           )}
         </div>
+
 
         {/* Ingresos detallado */}
         <div className="mb-5 pb-5 border-b" style={{ borderColor: 'var(--color-border)' }}>
@@ -458,14 +565,7 @@ export default function CierreCaja() {
           <p className="text-sm font-medium">Ajuste por diferencia de caja en apertura del día</p>
           <p
             className="font-mono-num text-lg font-semibold"
-            style={{
-              color:
-                ajustePorApertura > 0
-                  ? 'var(--color-success)'
-                  : ajustePorApertura < 0
-                  ? 'var(--color-danger)'
-                  : undefined,
-            }}
+            style={{ color: ajustePorApertura > 0 ? 'var(--color-success)' : undefined }}
           >
             {currency(ajustePorApertura)}
           </p>
