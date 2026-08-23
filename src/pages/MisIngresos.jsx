@@ -9,7 +9,10 @@ export default function MisIngresos() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!profile?.manicurista_id) return
+    if (!profile?.manicurista_id) {
+      setLoading(false)
+      return
+    }
     supabase
       .from('registros_servicios')
       .select('id, fecha, cliente_nombre, tipo_servicio, costo, porcentaje, pagado_manicurista')
@@ -36,6 +39,14 @@ export default function MisIngresos() {
   }, [registros, hoy])
 
   if (loading) return <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
+
+  if (!profile?.manicurista_id) {
+    return (
+      <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        Esta sección es solo para manicuristas.
+      </p>
+    )
+  }
 
   return (
     <div>
