@@ -433,6 +433,11 @@ export default function CierreCaja() {
                 Se calcula cuando se guarde la apertura y el depósito bancario.
               </p>
             )}
+            {cierre?.efectivo_caja_siguiente != null && (cierre?.total_gastos_efectivo ?? 0) > 0 && (
+              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                Ya descuenta {currency(cierre.total_gastos_efectivo)} en gastos pagados en efectivo.
+              </p>
+            )}
           </div>
           <p className="font-mono-num text-lg font-semibold">
             {cierre?.efectivo_caja_siguiente != null ? currency(cierre.efectivo_caja_siguiente) : '—'}

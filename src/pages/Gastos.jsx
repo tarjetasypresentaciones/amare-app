@@ -4,11 +4,21 @@ import { currency, longDate, dateTimeShort, todayISO } from '../utils/format'
 
 const BUCKET_FOTOS_GASTOS = 'fotos-gastos'
 
+const METODOS = [
+  { value: 'efectivo', label: 'Efectivo' },
+  { value: 'tarjeta', label: 'Tarjeta' },
+  { value: 'transferencia', label: 'Transferencia' },
+  { value: 'llave_bre_b', label: 'Llave Bre-B' },
+  { value: 'nequi', label: 'Nequi' },
+  { value: 'otro', label: 'Otro' },
+]
+
 const FORM_VACIO = {
   fecha: todayISO(),
   categoria_id: '',
   concepto: '',
   valor: '',
+  metodo_pago: 'efectivo',
 }
 
 export default function Gastos() {
@@ -27,7 +37,7 @@ export default function Gastos() {
       supabase.from('categorias_gasto').select('id, nombre').eq('activo', true).order('orden'),
       supabase
         .from('gastos')
-        .select('id, fecha, concepto, valor, foto_url, created_at, categorias_gasto(nombre)')
+        .select('id, fecha, concepto, valor, metodo_pago, foto_url, created_at, categorias_gasto(nombre)')
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(100),
@@ -91,6 +101,7 @@ export default function Gastos() {
       categoria_id: form.categoria_id,
       concepto: form.concepto.trim(),
       valor: monto,
+      metodo_pago: form.metodo_pago,
       foto_url: publicUrlData.publicUrl,
       created_by: userData?.user?.id,
     })
@@ -187,6 +198,20 @@ export default function Gastos() {
           </div>
 
           <div>
+            <label className="text-sm font-medium mb-1.5 block">Método de pago</label>
+            <select
+              value={form.metodo_pago}
+              onChange={(e) => setForm((f) => ({ ...f, metodo_pago: e.target.value }))}
+              className="w-full rounded-lg border px-3 py-2 text-sm bg-white"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              {METODOS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="text-sm font-medium mb-1.5 block">Foto del recibo o factura</label>
             <input
               ref={inputFoto}
@@ -246,7 +271,7 @@ export default function Gastos() {
                 <span className="text-sm font-medium truncate">{g.concepto}</span>
               </div>
               <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                {g.categorias_gasto?.nombre ?? '—'} · <span className="capitalize">{longDate(g.fecha)}</span>
+                {g.categorias_gasto?.nombre ?? '—'} · <span className="capitalize">{longDate(g.fecha)}</span> · {METODOS.find((m) => m.value === g.metodo_pago)?.label ?? g.metodo_pago}
               </p>
               <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                 Registrado {dateTimeShort(g.created_at)}
