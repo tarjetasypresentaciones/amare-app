@@ -214,6 +214,7 @@ export default function CierreCaja() {
     { label: 'Tarjeta', valor: cierre?.ingreso_tarjeta ?? 0 },
     { label: 'Transferencia', valor: cierre?.ingreso_transferencia ?? 0 },
     { label: 'Llave Bre-B', valor: cierre?.ingreso_llave_bre_b ?? 0 },
+    { label: 'Nequi', valor: cierre?.ingreso_nequi ?? 0 },
     { label: 'Otro', valor: cierre?.ingreso_otro ?? 0 },
   ]
 
@@ -221,6 +222,7 @@ export default function CierreCaja() {
     { label: 'Efectivo', valor: cierre?.ingreso_efectivo ?? 0 },
     { label: 'Bold (Tarjeta y Llave)', valor: (cierre?.ingreso_tarjeta ?? 0) + (cierre?.ingreso_llave_bre_b ?? 0) },
     { label: 'Transferencia', valor: cierre?.ingreso_transferencia ?? 0 },
+    { label: 'Nequi', valor: cierre?.ingreso_nequi ?? 0 },
     { label: 'Otro', valor: cierre?.ingreso_otro ?? 0 },
   ]
 
