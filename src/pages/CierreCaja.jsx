@@ -57,10 +57,12 @@ export default function CierreCaja() {
     setConfig(cfg)
     setLoading(false)
 
-    // Prellenar el campo de apertura con el valor sugerido (el cierre del
-    // día anterior), solo si todavía no se ha guardado la apertura de hoy.
+    // El campo de apertura empieza vacío a propósito: es un conteo ciego,
+    // la persona escribe lo que contó sin ver el valor esperado. La
+    // comparación contra el cierre del día anterior se hace solo al
+    // guardar (alerta en pantalla + correo si no coincide).
     if (!c?.efectivo_apertura) {
-      setAperturaInput(cAnt?.efectivo_caja_siguiente != null ? String(cAnt.efectivo_caja_siguiente) : '')
+      setAperturaInput('')
     }
     setDepositoMonto('')
     setDepositoArchivo(null)
@@ -221,11 +223,21 @@ export default function CierreCaja() {
   const aperturaGuardada = cierre?.efectivo_apertura != null
   const depositoGuardado = cierre?.deposito_bancario != null
   const sugerenciaApertura = cierreAnterior?.efectivo_caja_siguiente
-  const aperturaNoCoincide =
-    !aperturaGuardada &&
-    sugerenciaApertura != null &&
-    aperturaInput !== '' &&
-    Math.round(parseFloat(aperturaInput || '0')) !== Math.round(sugerenciaApertura)
+  // Diferencia entre lo contado hoy en la apertura y lo que dejó el
+  // cierre del día anterior. 0 mientras no haya apertura guardada o no
+  // haya cierre anterior con qué comparar. Se usa solo para la fila
+  // informativa "Diferencia en caja del día" (siempre en rojo/negativo).
+  const diferenciaApertura =
+    aperturaGuardada && sugerenciaApertura != null
+      ? cierre.efectivo_apertura - sugerenciaApertura
+      : 0
+  // Ajuste por diferencia de caja en apertura: signo invertido respecto
+  // a diferenciaApertura. Positivo cuando faltó dinero (se da por
+  // recuperable — la persona responsable lo repone), negativo cuando
+  // sobró. La base de datos ya suma este mismo ajuste al calcular
+  // "Efectivo en caja para el día siguiente", así que aquí solo se
+  // muestra de forma informativa, sin sumarlo de nuevo.
+  const ajustePorApertura = -diferenciaApertura
 
   const ingresosDetallado = [
     { label: 'Efectivo', valor: cierre?.ingreso_efectivo ?? 0 },
@@ -292,11 +304,21 @@ export default function CierreCaja() {
         <div className="mb-5 pb-5 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <p className="text-sm font-medium mb-2">Efectivo en caja apertura</p>
           {aperturaGuardada ? (
-            <div className="flex items-center justify-between">
-              <p className="font-mono-num text-lg font-semibold">{currency(cierre.efectivo_apertura)}</p>
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                Guardado {dateTimeShort(cierre.efectivo_apertura_guardado_at)}
-              </p>
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="font-mono-num text-lg font-semibold">{currency(cierre.efectivo_apertura)}</p>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  Guardado {dateTimeShort(cierre.efectivo_apertura_guardado_at)}
+                </p>
+              </div>
+              {sugerenciaApertura != null && (
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-sm font-medium">Diferencia en caja del día</p>
+                  <p className="font-mono-num text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
+                    {currency(-Math.abs(diferenciaApertura))}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -319,20 +341,9 @@ export default function CierreCaja() {
                   {guardandoApertura ? 'Guardando…' : 'Guardar'}
                 </button>
               </div>
-              {sugerenciaApertura != null ? (
-                <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                  Debe coincidir con la caja del día anterior: {currency(sugerenciaApertura)}
-                </p>
-              ) : (
-                <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                  No hay un cierre del día anterior con el que comparar.
-                </p>
-              )}
-              {aperturaNoCoincide && (
-                <p className="text-xs mt-1 font-medium" style={{ color: 'var(--color-danger)' }}>
-                  ⚠ Este valor no coincide con el cierre del día anterior ({currency(sugerenciaApertura)}).
-                </p>
-              )}
+              <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                Escribe el efectivo que contaste en caja.
+              </p>
             </>
           )}
         </div>
@@ -440,6 +451,24 @@ export default function CierreCaja() {
               </button>
             </>
           )}
+        </div>
+
+        {/* Ajuste por diferencia de caja en apertura del día */}
+        <div className="mb-5 pb-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
+          <p className="text-sm font-medium">Ajuste por diferencia de caja en apertura del día</p>
+          <p
+            className="font-mono-num text-lg font-semibold"
+            style={{
+              color:
+                ajustePorApertura > 0
+                  ? 'var(--color-success)'
+                  : ajustePorApertura < 0
+                  ? 'var(--color-danger)'
+                  : undefined,
+            }}
+          >
+            {currency(ajustePorApertura)}
+          </p>
         </div>
 
         {/* Efectivo en caja para el día siguiente */}
