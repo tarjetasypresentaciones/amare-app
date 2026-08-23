@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { currency, shortDate, todayISO, startOfMonthISO } from '../utils/format'
+import { currency, shortDate, todayISO } from '../utils/format'
 import PolishDot from '../components/PolishDot'
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function Historial() {
   const [manicuristas, setManicuristas] = useState([])
   const [filtroManicurista, setFiltroManicurista] = useState('')
-  const [desde, setDesde] = useState(startOfMonthISO(todayISO()))
+  const [desde, setDesde] = useState(todayISO())
   const [hasta, setHasta] = useState(todayISO())
   const [registros, setRegistros] = useState([])
   const [loading, setLoading] = useState(true)
@@ -37,6 +40,63 @@ export default function Historial() {
   const totalCosto = registros.reduce((s, r) => s + Number(r.costo), 0)
   const totalPagado = registros.reduce((s, r) => s + Number(r.pagado_manicurista), 0)
 
+  // Nombre de archivo con el rango de fechas filtrado, para que quede
+  // claro qué periodo contiene cada descarga.
+  const nombreArchivo = `historial-servicios_${desde}_a_${hasta}`
+
+  // Mismas filas que se ven en pantalla, con las columnas pedidas:
+  // Fecha, Manicurista, Servicio, Cliente, Costo, Pagado.
+  const filasParaExportar = () =>
+    registros.map((r) => ({
+      Fecha: shortDate(r.fecha),
+      Manicurista: r.manicuristas?.nombre ?? '—',
+      Servicio: r.tipo_servicio,
+      Cliente: r.cliente_nombre || '—',
+      Costo: Number(r.costo),
+      Pagado: Number(r.pagado_manicurista),
+    }))
+
+  const exportarExcel = () => {
+    const filas = filasParaExportar()
+    const hoja = XLSX.utils.json_to_sheet(filas)
+    hoja['!cols'] = [{ wch: 10 }, { wch: 20 }, { wch: 22 }, { wch: 24 }, { wch: 12 }, { wch: 12 }]
+    const libro = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(libro, hoja, 'Historial')
+    XLSX.writeFile(libro, `${nombreArchivo}.xlsx`)
+  }
+
+  const exportarPDF = () => {
+    const filas = filasParaExportar()
+    const doc = new jsPDF({ orientation: 'landscape' })
+
+    doc.setFontSize(14)
+    doc.text('Amaré — Historial de servicios', 14, 15)
+    doc.setFontSize(10)
+    doc.text(
+      `Del ${shortDate(desde)} al ${shortDate(hasta)}` +
+        (filtroManicurista ? ` — ${manicuristas.find((m) => m.id === filtroManicurista)?.nombre ?? ''}` : ''),
+      14,
+      21
+    )
+
+    autoTable(doc, {
+      startY: 26,
+      head: [['Fecha', 'Manicurista', 'Servicio', 'Cliente', 'Costo', 'Pagado']],
+      body: filas.map((f) => [
+        f.Fecha,
+        f.Manicurista,
+        f.Servicio,
+        f.Cliente,
+        currency(f.Costo),
+        currency(f.Pagado),
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [122, 46, 58] },
+    })
+
+    doc.save(`${nombreArchivo}.pdf`)
+  }
+
   return (
     <div>
       <h2 className="font-display text-2xl mb-1">Historial de servicios</h2>
@@ -63,6 +123,27 @@ export default function Historial() {
             {manicuristas.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
           </select>
         </div>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <button
+          type="button"
+          onClick={exportarExcel}
+          disabled={registros.length === 0}
+          className="text-sm font-medium rounded-full px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ border: '1px solid var(--color-border)' }}
+        >
+          📊 Exportar Excel
+        </button>
+        <button
+          type="button"
+          onClick={exportarPDF}
+          disabled={registros.length === 0}
+          className="text-sm font-medium rounded-full px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ border: '1px solid var(--color-border)' }}
+        >
+          📄 Exportar PDF
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
