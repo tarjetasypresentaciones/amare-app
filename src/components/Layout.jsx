@@ -12,6 +12,7 @@ const ICONS = {
   tiposServicio: '💵',
   cierre: '🗓️',
   calendario: '📅',
+  gastos: '🧾',
 }
 
 export default function Layout({ children }) {
@@ -29,6 +30,7 @@ export default function Layout({ children }) {
         { to: '/tipos-servicio', label: 'Tipos de servicio', icon: ICONS.tiposServicio },
         { to: '/equipo', label: 'Equipo', icon: ICONS.equipo },
         { to: '/cierre', label: 'Cierre', icon: ICONS.cierre },
+        { to: '/gastos', label: 'Gastos', icon: ICONS.gastos },
       ]
     : [
         { to: '/mis-ingresos', label: 'Mis ingresos', icon: ICONS.panel },
