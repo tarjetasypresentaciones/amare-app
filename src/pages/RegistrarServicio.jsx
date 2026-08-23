@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../lib/AuthContext'
 import { currency, todayISO } from '../utils/format'
+import logoAmare from '../assets/logo-amare.png'
 
 const METODOS = [
   { value: 'efectivo', label: 'Efectivo' },
   { value: 'tarjeta', label: 'Tarjeta' },
   { value: 'transferencia', label: 'Transferencia' },
   { value: 'llave_bre_b', label: 'Llave Bre-B' },
+  { value: 'nequi', label: 'Nequi' },
   { value: 'otro', label: 'Otro' },
 ]
 
@@ -34,6 +36,8 @@ export default function RegistrarServicio() {
 
   const [status, setStatus] = useState({ type: '', msg: '' })
   const [saving, setSaving] = useState(false)
+  const [recibo, setRecibo] = useState(null)
+  const horaImpresionRef = useRef(null)
 
   useEffect(() => {
     supabase
@@ -161,6 +165,16 @@ export default function RegistrarServicio() {
     const cliente = clientes.find((c) => c.id === form.cliente_id)
     const clienteNombre = cliente ? `${cliente.nombre} ${cliente.apellido}` : null
 
+    // Un número de recibo por visita (no por línea) — manicure + pedicure
+    // guardados juntos comparten el mismo número.
+    const { data: numeroData, error: errorNumero } = await supabase.rpc('siguiente_numero_recibo')
+    if (errorNumero) {
+      setSaving(false)
+      setStatus({ type: 'error', msg: 'No se pudo generar el número de recibo: ' + errorNumero.message })
+      return
+    }
+    const numeroRecibo = numeroData
+
     const filas = lineasConDatos.map((l, i) => ({
       fecha: form.fecha,
       manicurista_id: form.manicurista_id,
@@ -173,6 +187,7 @@ export default function RegistrarServicio() {
       observaciones: i === 0 ? form.observaciones.trim() || null : null,
       porcentaje: parseFloat(l.porcentaje) || 0,
       metodo_pago: form.metodo_pago,
+      numero_recibo: numeroRecibo,
       created_by: userData?.user?.id,
     }))
 
@@ -185,9 +200,39 @@ export default function RegistrarServicio() {
     }
 
     const plural = filas.length > 1 ? `${filas.length} servicios guardados` : 'Servicio guardado'
-    setStatus({ type: 'success', msg: `${plural}. Se le paga ${currency(pagadoPreview)} a la manicurista.` })
+    setStatus({ type: 'success', msg: `${plural} — Recibo de Caja N.º ${numeroRecibo}. Se le paga ${currency(pagadoPreview)} a la manicurista.` })
+
+    const manicurista = manicuristas.find((m) => m.id === form.manicurista_id)
+    setRecibo({
+      numero: numeroRecibo,
+      fecha: form.fecha,
+      manicurista: manicurista?.nombre ?? '',
+      cliente: clienteNombre,
+      metodo_pago: METODOS.find((m) => m.value === form.metodo_pago)?.label ?? form.metodo_pago,
+      lineas: filas.map((f) => ({ tipo_servicio: f.tipo_servicio, costo: f.costo })),
+      costoAdicional: costoAdicionalNum,
+      observaciones: form.observaciones.trim(),
+      total: costoTotalNum,
+    })
+
     setForm((f) => ({ ...f, cliente_id: '', costoAdicional: '', observaciones: '' }))
     setLineas([{ ...LINEA_VACIA }])
+  }
+
+  const formatoFechaImpresion = (d) => {
+    const pad = (n) => String(n).padStart(2, '0')
+    const fecha = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    let horas = d.getHours()
+    const ampm = horas >= 12 ? 'pm' : 'am'
+    horas = horas % 12 || 12
+    return `${fecha} ${pad(horas)}:${pad(d.getMinutes())} ${ampm}`
+  }
+
+  const imprimirRecibo = () => {
+    if (horaImpresionRef.current) {
+      horaImpresionRef.current.textContent = formatoFechaImpresion(new Date())
+    }
+    window.print()
   }
 
   return (
@@ -384,6 +429,17 @@ export default function RegistrarServicio() {
           </p>
         )}
 
+        {recibo && status.type === 'success' && (
+          <button
+            type="button"
+            onClick={imprimirRecibo}
+            className="w-full rounded-lg py-2.5 text-sm font-semibold border"
+            style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+          >
+            🖨️ Imprimir recibo de caja
+          </button>
+        )}
+
         <button
           type="submit"
           disabled={saving || !puedeGuardar}
@@ -393,6 +449,39 @@ export default function RegistrarServicio() {
           {saving ? 'Guardando…' : 'Guardar servicio'}
         </button>
       </form>
+
+      {/* Recibo oculto: solo se ve al imprimir (ver .recibo-impresion en index.css) */}
+      {recibo && (
+        <div className="recibo-impresion">
+          <div style={{ textAlign: 'center', marginBottom: 6 }}>
+            <img src={logoAmare} alt="Amaré Atelier" style={{ width: '32mm', height: 'auto' }} />
+          </div>
+          <p style={{ textAlign: 'center', marginBottom: 8 }}>Donde te eliges a ti</p>
+          <p style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: 8 }}>
+            Recibo de Caja N.º {String(recibo.numero).padStart(6, '0')}
+          </p>
+          <p>Fecha: <span ref={horaImpresionRef}></span></p>
+          <p>Manicurista: {recibo.manicurista}</p>
+          {recibo.cliente && <p>Cliente: {recibo.cliente}</p>}
+          <p>--------------------------------</p>
+          {recibo.lineas.map((l, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>{l.tipo_servicio}</span>
+              <span>{currency(l.costo)}</span>
+            </div>
+          ))}
+          {recibo.observaciones && <p>Obs: {recibo.observaciones}</p>}
+          <p>--------------------------------</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+            <span>TOTAL</span>
+            <span>{currency(recibo.total)}</span>
+          </div>
+          <p>Método de pago: {recibo.metodo_pago}</p>
+          <p style={{ textAlign: 'center', marginTop: 8 }}>Régimen: Persona natural</p>
+          <p style={{ textAlign: 'center' }}>No responsable de IVA - No obligado a expedir factura</p>
+          <p style={{ textAlign: 'center', marginTop: 8 }}>¡Gracias por tu visita!</p>
+        </div>
+      )}
     </div>
   )
 }
