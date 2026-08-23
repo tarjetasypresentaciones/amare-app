@@ -133,6 +133,7 @@ export default function RegistrarServicio() {
     !!form.metodo_pago &&
     lineas.every((l) => !!l.tipo_servicio_id) &&
     !(requiereObservacion && !form.observaciones.trim()) &&
+    costoAdicionalNum >= 0 &&
     costoTotalNum > 0
 
   const handleSubmit = async (e) => {
@@ -155,6 +156,10 @@ export default function RegistrarServicio() {
       })
       return
     }
+    if (costoAdicionalNum < 0) {
+      setStatus({ type: 'error', msg: 'El costo adicional no puede ser negativo.' })
+      return
+    }
     if (requiereObservacion && !form.observaciones.trim()) {
       setStatus({ type: 'error', msg: 'Como hay un costo adicional, escribe una observación explicando de qué se trata.' })
       return
@@ -164,6 +169,7 @@ export default function RegistrarServicio() {
     const { data: userData } = await supabase.auth.getUser()
     const cliente = clientes.find((c) => c.id === form.cliente_id)
     const clienteNombre = cliente ? `${cliente.nombre} ${cliente.apellido}` : null
+    const fechaHoy = todayISO()
 
     // Un número de recibo por visita (no por línea) — manicure + pedicure
     // guardados juntos comparten el mismo número.
@@ -176,7 +182,7 @@ export default function RegistrarServicio() {
     const numeroRecibo = numeroData
 
     const filas = lineasConDatos.map((l, i) => ({
-      fecha: form.fecha,
+      fecha: fechaHoy,
       manicurista_id: form.manicurista_id,
       cliente_id: form.cliente_id || null,
       cliente_nombre: clienteNombre,
@@ -205,7 +211,7 @@ export default function RegistrarServicio() {
     const manicurista = manicuristas.find((m) => m.id === form.manicurista_id)
     setRecibo({
       numero: numeroRecibo,
-      fecha: form.fecha,
+      fecha: fechaHoy,
       manicurista: manicurista?.nombre ?? '',
       cliente: clienteNombre,
       metodo_pago: METODOS.find((m) => m.value === form.metodo_pago)?.label ?? form.metodo_pago,
@@ -249,10 +255,14 @@ export default function RegistrarServicio() {
             <input
               type="date"
               value={form.fecha}
-              onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-              className="w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: 'var(--color-border)' }}
+              disabled
+              readOnly
+              className="w-full rounded-lg border px-3 py-2 text-sm cursor-not-allowed opacity-70"
+              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}
             />
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              Los servicios solo se registran con la fecha de hoy.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Método de pago</label>
@@ -363,7 +373,12 @@ export default function RegistrarServicio() {
               min="0"
               step="1000"
               value={form.costoAdicional}
-              onChange={(e) => setForm({ ...form, costoAdicional: e.target.value })}
+              onChange={(e) => {
+                const v = e.target.value
+                // No se permiten valores negativos: se quita el signo
+                // menos apenas se escribe.
+                setForm({ ...form, costoAdicional: v.startsWith('-') ? v.slice(1) : v })
+              }}
               className="w-full rounded-lg border px-3 py-2 text-sm font-mono-num"
               style={{ borderColor: 'var(--color-border)' }}
               placeholder="0"
