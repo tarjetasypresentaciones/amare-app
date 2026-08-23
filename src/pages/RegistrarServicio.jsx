@@ -453,8 +453,12 @@ export default function RegistrarServicio() {
       {/* Recibo oculto: solo se ve al imprimir (ver .recibo-impresion en index.css) */}
       {recibo && (
         <div className="recibo-impresion">
-          <div style={{ textAlign: 'center', marginBottom: 6 }}>
-            <img src={logoAmare} alt="Amaré Atelier" style={{ width: '32mm', height: 'auto' }} />
+          <div style={{ textAlign: 'center', width: '100%', marginBottom: 6 }}>
+            <img
+              src={logoAmare}
+              alt="Amaré Atelier"
+              style={{ display: 'block', width: '22mm', height: 'auto', margin: '0 auto' }}
+            />
           </div>
           <p style={{ textAlign: 'center', marginBottom: 8 }}>Donde te eliges a ti</p>
           <p style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: 8 }}>
