@@ -54,6 +54,11 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     profile,
     isAdmin: profile?.role === 'admin',
+    isEmpleadoAdmin: profile?.role === 'empleado_admin',
+    // "puedeOperar" agrupa admin y empleado_admin: se usa dentro de las
+    // pantallas que ambos comparten (Registrar, Calendario, Gastos,
+    // Clientes) para que se comporten igual que para un admin normal.
+    puedeOperar: profile?.role === 'admin' || profile?.role === 'empleado_admin',
     loading,
     signIn,
     signOut,
