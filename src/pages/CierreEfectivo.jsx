@@ -162,8 +162,11 @@ export default function CierreEfectivo() {
               {sugerenciaApertura != null && (
                 <div className="flex items-center justify-between mt-2">
                   <p className="text-sm font-medium">Diferencia en caja del día</p>
-                  <p className="font-mono-num text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
-                    {currency(-Math.abs(diferenciaApertura))}
+                  <p
+                    className="font-mono-num text-sm font-semibold"
+                    style={{ color: diferenciaApertura > 0 ? 'var(--color-success)' : diferenciaApertura < 0 ? 'var(--color-danger)' : undefined }}
+                  >
+                    {currency(diferenciaApertura)}
                   </p>
                 </div>
               )}

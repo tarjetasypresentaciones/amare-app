@@ -172,7 +172,6 @@ export default function Historial() {
                 <th className="px-4 py-2 font-medium">Servicio</th>
                 <th className="px-4 py-2 font-medium">Cliente</th>
                 <th className="px-4 py-2 font-medium text-right">Costo</th>
-                <th className="px-4 py-2 font-medium text-right">%</th>
                 <th className="px-4 py-2 font-medium text-right">Pagado</th>
               </tr>
             </thead>
@@ -189,7 +188,6 @@ export default function Historial() {
                   <td className="px-4 py-2">{r.tipo_servicio}</td>
                   <td className="px-4 py-2" style={{ color: 'var(--color-text-muted)' }}>{r.cliente_nombre || '—'}</td>
                   <td className="px-4 py-2 text-right font-mono-num">{currency(r.costo)}</td>
-                  <td className="px-4 py-2 text-right font-mono-num">{r.porcentaje}%</td>
                   <td className="px-4 py-2 text-right font-mono-num font-medium">{currency(r.pagado_manicurista)}</td>
                 </tr>
               ))}

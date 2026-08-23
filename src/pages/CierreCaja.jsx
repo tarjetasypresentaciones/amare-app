@@ -322,6 +322,24 @@ export default function CierreCaja() {
 
       {/* --- Caja del día --- */}
       <div className="card p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <input
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className="rounded-lg border px-3 py-1.5 text-sm"
+            style={{ borderColor: 'var(--color-border)' }}
+          />
+          {cierre && (
+            <span
+              className="text-xs font-medium rounded-full px-3 py-1"
+              style={{ background: estadoLabel[cierre.estado].bg, color: estadoLabel[cierre.estado].fg }}
+            >
+              {estadoLabel[cierre.estado].text}
+            </span>
+          )}
+        </div>
+
         <p className="font-display text-lg mb-4">Caja del día — <span className="capitalize">{longDate(fecha)}</span></p>
 
         {status && (
@@ -344,8 +362,11 @@ export default function CierreCaja() {
               {sugerenciaApertura != null && (
                 <div className="flex items-center justify-between mt-2">
                   <p className="text-sm font-medium">Diferencia en caja del día</p>
-                  <p className="font-mono-num text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
-                    {currency(-Math.abs(diferenciaApertura))}
+                  <p
+                    className="font-mono-num text-sm font-semibold"
+                    style={{ color: diferenciaApertura > 0 ? 'var(--color-success)' : diferenciaApertura < 0 ? 'var(--color-danger)' : undefined }}
+                  >
+                    {currency(diferenciaApertura)}
                   </p>
                 </div>
               )}
@@ -593,24 +614,6 @@ export default function CierreCaja() {
       </div>
 
       <div className="card p-5 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="rounded-lg border px-3 py-1.5 text-sm"
-            style={{ borderColor: 'var(--color-border)' }}
-          />
-          {cierre && (
-            <span
-              className="text-xs font-medium rounded-full px-3 py-1"
-              style={{ background: estadoLabel[cierre.estado].bg, color: estadoLabel[cierre.estado].fg }}
-            >
-              {estadoLabel[cierre.estado].text}
-            </span>
-          )}
-        </div>
-
         <p className="font-display text-lg mb-4 capitalize">{longDate(fecha)}</p>
 
         {!cierre ? (

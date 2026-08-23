@@ -38,9 +38,8 @@ export default function Gastos() {
       supabase
         .from('gastos')
         .select('id, fecha, concepto, valor, metodo_pago, foto_url, created_at, categorias_gasto(nombre)')
-        .order('fecha', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(100),
+        .eq('fecha', todayISO())
+        .order('created_at', { ascending: false }),
     ])
     setCategorias(cats ?? [])
     setGastos(gs ?? [])
@@ -246,7 +245,7 @@ export default function Gastos() {
 
       <div className="card divide-y" style={{ borderColor: 'var(--color-border)' }}>
         <div className="px-4 py-3 flex items-center justify-between">
-          <p className="text-sm font-semibold">Últimos gastos</p>
+          <p className="text-sm font-semibold">Gastos de hoy</p>
           {!loading && gastos.length > 0 && (
             <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
               Total: <span className="font-mono-num font-semibold">{currency(totalListado)}</span>
