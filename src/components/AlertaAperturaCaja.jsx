@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../lib/AuthContext'
 import { todayISO } from '../utils/format'
 
 // Hora límite: 10:30 a.m. (hora del computador donde se usa la app).
@@ -24,19 +25,24 @@ const snoozeActivo = () => {
 }
 
 /**
- * Alerta global (para admins) que avisa si, pasadas las 10:30 a.m., aún
- * no se ha guardado el efectivo de apertura del día en Cierre de caja.
+ * Alerta global (para admin y empleado_admin) que avisa si, pasadas las
+ * 10:30 a.m., aún no se ha guardado el efectivo de apertura del día.
  * Vive dentro de Layout, así que aparece sin importar en qué pantalla
- * esté la persona.
+ * esté la persona. Usa la función obtener_cierre_efectivo (en vez de
+ * leer la tabla cierres_caja directo) para que también funcione para
+ * empleado_admin, que no tiene acceso de lectura a esa tabla completa.
  */
 export default function AlertaAperturaCaja() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { isEmpleadoAdmin } = useAuth()
   const [mostrar, setMostrar] = useState(false)
 
+  const rutaCierre = isEmpleadoAdmin ? '/cierre-efectivo' : '/cierre'
+
   const verificar = async () => {
-    // Ya está en Cierre de caja: no interrumpir con la alerta ahí.
-    if (location.pathname === '/cierre') {
+    // Ya está en la pantalla de cierre correspondiente: no interrumpir ahí.
+    if (location.pathname === '/cierre' || location.pathname === '/cierre-efectivo') {
       setMostrar(false)
       return
     }
@@ -44,12 +50,9 @@ export default function AlertaAperturaCaja() {
       setMostrar(false)
       return
     }
-    const { data } = await supabase
-      .from('cierres_caja')
-      .select('efectivo_apertura')
-      .eq('fecha', todayISO())
-      .maybeSingle()
-    setMostrar(data?.efectivo_apertura == null)
+    const { data } = await supabase.rpc('obtener_cierre_efectivo', { p_fecha: todayISO() })
+    const fila = Array.isArray(data) ? data[0] : data
+    setMostrar(fila?.efectivo_apertura == null)
   }
 
   useEffect(() => {
@@ -65,7 +68,7 @@ export default function AlertaAperturaCaja() {
 
   const irACierre = () => {
     setMostrar(false)
-    navigate('/cierre')
+    navigate(rutaCierre)
   }
 
   if (!mostrar) return null

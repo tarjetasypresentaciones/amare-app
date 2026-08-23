@@ -12,12 +12,13 @@ const ICONS = {
   servicios: '🏷️',
   tiposServicio: '💵',
   cierre: '🗓️',
+  cierreEfectivo: '💵',
   calendario: '📅',
   gastos: '🧾',
 }
 
 export default function Layout({ children }) {
-  const { profile, isAdmin, signOut } = useAuth()
+  const { profile, isAdmin, isEmpleadoAdmin, signOut } = useAuth()
   const navigate = useNavigate()
 
   const links = isAdmin
@@ -33,6 +34,14 @@ export default function Layout({ children }) {
         { to: '/cierre', label: 'Cierre', icon: ICONS.cierre },
         { to: '/gastos', label: 'Gastos', icon: ICONS.gastos },
       ]
+    : isEmpleadoAdmin
+    ? [
+        { to: '/registrar', label: 'Registrar', icon: ICONS.registrar },
+        { to: '/calendario', label: 'Calendario', icon: ICONS.calendario },
+        { to: '/gastos', label: 'Gastos', icon: ICONS.gastos },
+        { to: '/clientes', label: 'Clientes', icon: ICONS.clientes },
+        { to: '/cierre-efectivo', label: 'Cierre en efectivo', icon: ICONS.cierreEfectivo },
+      ]
     : [
         { to: '/mis-ingresos', label: 'Mis ingresos', icon: ICONS.panel },
         { to: '/mi-calendario', label: 'Mi calendario', icon: ICONS.calendario },
@@ -45,7 +54,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row" style={{ background: 'var(--color-bg)' }}>
-      {isAdmin && <AlertaAperturaCaja />}
+      {(isAdmin || isEmpleadoAdmin) && <AlertaAperturaCaja />}
       {/* Barra lateral — escritorio */}
       <aside
         className="hidden md:flex md:flex-col md:w-64 md:shrink-0 border-r"
@@ -80,11 +89,11 @@ export default function Layout({ children }) {
           ))}
         </nav>
         <div className="px-4 py-5 border-t flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
-          {!isAdmin && <Avatar url={profile?.manicuristas?.foto_url} nombre={profile?.nombre_completo} size={36} />}
+          {!isAdmin && !isEmpleadoAdmin && <Avatar url={profile?.manicuristas?.foto_url} nombre={profile?.nombre_completo} size={36} />}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium truncate">{profile?.nombre_completo}</p>
             <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>
-              {isAdmin ? 'Administradora/or' : 'Manicurista'}
+              {isAdmin ? 'Administradora/or' : isEmpleadoAdmin ? 'Empleado admin' : 'Manicurista'}
             </p>
             <button
               onClick={handleSignOut}
@@ -106,7 +115,7 @@ export default function Layout({ children }) {
           Amaré
         </h1>
         <div className="flex items-center gap-3">
-          {!isAdmin && <Avatar url={profile?.manicuristas?.foto_url} nombre={profile?.nombre_completo} size={32} />}
+          {!isAdmin && !isEmpleadoAdmin && <Avatar url={profile?.manicuristas?.foto_url} nombre={profile?.nombre_completo} size={32} />}
           <button onClick={handleSignOut} className="text-sm font-medium" style={{ color: 'var(--color-danger)' }}>
             Salir
           </button>
