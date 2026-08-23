@@ -60,7 +60,7 @@ function AppRoutes() {
       <Route path="/cierre" element={<Protected allowedRoles={['admin']}><CierreCaja /></Protected>} />
       <Route path="/cierre-efectivo" element={<Protected allowedRoles={['admin', 'empleado_admin']}><CierreEfectivo /></Protected>} />
       <Route path="/gastos" element={<Protected allowedRoles={['admin', 'empleado_admin']}><Gastos /></Protected>} />
-      <Route path="/mis-ingresos" element={<Protected><MisIngresos /></Protected>} />
+      <Route path="/mis-ingresos" element={<Protected allowedRoles={['manicurista']}><MisIngresos /></Protected>} />
       <Route path="*" element={<Navigate to={homePath} replace />} />
     </Routes>
   )
