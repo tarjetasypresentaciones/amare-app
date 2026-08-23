@@ -20,7 +20,7 @@ export default function Historial() {
     setLoading(true)
     let query = supabase
       .from('registros_servicios')
-      .select('id, fecha, cliente_nombre, tipo_servicio, costo, porcentaje, pagado_manicurista, metodo_pago, manicuristas(nombre, color)')
+      .select('id, fecha, cliente_nombre, tipo_servicio, costo, porcentaje, pagado_manicurista, metodo_pago, numero_recibo, manicuristas(nombre, color)')
       .gte('fecha', desde)
       .lte('fecha', hasta)
       .order('fecha', { ascending: false })
@@ -85,6 +85,7 @@ export default function Historial() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left" style={{ color: 'var(--color-text-muted)' }}>
+                <th className="px-4 py-2 font-medium">Recibo de Caja</th>
                 <th className="px-4 py-2 font-medium">Fecha</th>
                 <th className="px-4 py-2 font-medium">Manicurista</th>
                 <th className="px-4 py-2 font-medium">Servicio</th>
@@ -97,6 +98,9 @@ export default function Historial() {
             <tbody>
               {registros.map((r) => (
                 <tr key={r.id} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+                  <td className="px-4 py-2 whitespace-nowrap font-mono-num" style={{ color: 'var(--color-text-muted)' }}>
+                    {r.numero_recibo ? `N.º ${String(r.numero_recibo).padStart(6, '0')}` : '—'}
+                  </td>
                   <td className="px-4 py-2 whitespace-nowrap">{shortDate(r.fecha)}</td>
                   <td className="px-4 py-2">
                     <PolishDot color={r.manicuristas?.color} label={r.manicuristas?.nombre} />
