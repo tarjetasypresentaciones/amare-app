@@ -4,7 +4,7 @@ import PolishDot from '../components/PolishDot'
 import Avatar from '../components/Avatar'
 import {
   generarSlots, minutosATexto, textoAMinutos, sumarMinutos,
-  fechaISO, esFinDeSemana, nombreDia, PASO_MINUTOS,
+  fechaISO, nombreDia, PASO_MINUTOS,
   HORA_INICIO_CLIENTE, HORA_FIN_CLIENTE, esHoy, minutosAhora,
 } from '../utils/calendario'
 
@@ -229,7 +229,6 @@ export default function CalendarioAdmin() {
   }
 
   const asignarDiaLibreFinde = async (manicuristaId) => {
-    if (!esFinDeSemana(fecha)) return
     const motivo = motivos.find((m) => m.nombre.toLowerCase().includes('libre')) ?? motivos[0]
     if (!motivo) {
       alert('No encontré ningún motivo activo en el catálogo de "Motivos" en Supabase, así que no puedo bloquear el día. Avísame para revisarlo.')
@@ -240,7 +239,7 @@ export default function CalendarioAdmin() {
       fecha: iso,
       motivo_id: motivo.id,
       estado: 'aprobado',
-      observacion_admin: 'Asignado directamente por admin (fin de semana)',
+      observacion_admin: 'Asignado directamente por admin',
     }, { onConflict: 'manicurista_id,fecha' })
     if (error) {
       alert('No se pudo bloquear el día: ' + error.message)
@@ -356,16 +355,14 @@ export default function CalendarioAdmin() {
                     <Avatar url={m.foto_url} nombre={m.nombre} size={28} />
                     <PolishDot color={m.color} label={m.nombre} />
                   </div>
-                  {esFinDeSemana(fecha) && (
-                    <button
-                      onClick={() => asignarDiaLibreFinde(m.id)}
-                      title="Bloquear este fin de semana para esta manicurista"
-                      className="text-[10px] font-medium rounded-full px-2 py-0.5 shrink-0"
-                      style={{ border: '1px solid var(--color-border)' }}
-                    >
-                      Bloquear día
-                    </button>
-                  )}
+                  <button
+                    onClick={() => asignarDiaLibreFinde(m.id)}
+                    title="Bloquear este día para esta manicurista"
+                    className="text-[10px] font-medium rounded-full px-2 py-0.5 shrink-0"
+                    style={{ border: '1px solid var(--color-border)' }}
+                  >
+                    Bloquear día
+                  </button>
                 </div>
               ))}
             </div>
