@@ -19,6 +19,7 @@ const LINEA_VACIA = { tipo_servicio_id: '', tipo_servicio: '', porcentaje: '', p
 export default function RegistrarServicio() {
   const { profile, puedeOperar } = useAuth()
   const [manicuristas, setManicuristas] = useState([])
+  const [idsConDiaLibreHoy, setIdsConDiaLibreHoy] = useState([])
   const [tipos, setTipos] = useState([])
   const [clientes, setClientes] = useState([])
   const [vinculos, setVinculos] = useState([]) // servicios_manicurista: % específico por servicio+manicurista
@@ -66,6 +67,15 @@ export default function RegistrarServicio() {
       .select('tipo_servicio_id, manicurista_id, porcentaje')
       .eq('activo', true)
       .then(({ data }) => setVinculos(data ?? []))
+
+    // Manicuristas con día libre aprobado para hoy: no deben poder
+    // recibir servicios registrados a su nombre.
+    supabase
+      .from('dias_libres_manicurista')
+      .select('manicurista_id')
+      .eq('fecha', todayISO())
+      .eq('estado', 'aprobado')
+      .then(({ data }) => setIdsConDiaLibreHoy((data ?? []).map((d) => d.manicurista_id)))
   }, [])
 
   useEffect(() => {
@@ -290,10 +300,20 @@ export default function RegistrarServicio() {
               style={{ borderColor: 'var(--color-border)' }}
             >
               <option value="">Selecciona…</option>
-              {manicuristas.map((m) => (
-                <option key={m.id} value={m.id}>{m.nombre}</option>
-              ))}
+              {manicuristas
+                .filter((m) => !idsConDiaLibreHoy.includes(m.id))
+                .map((m) => (
+                  <option key={m.id} value={m.id}>{m.nombre}</option>
+                ))}
             </select>
+            {manicuristas.some((m) => idsConDiaLibreHoy.includes(m.id)) && (
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                No aparecen: {manicuristas
+                  .filter((m) => idsConDiaLibreHoy.includes(m.id))
+                  .map((m) => m.nombre)
+                  .join(', ')} — tiene{manicuristas.filter((m) => idsConDiaLibreHoy.includes(m.id)).length > 1 ? 'n' : ''} el día libre hoy.
+              </p>
+            )}
           </div>
         )}
 
