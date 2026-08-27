@@ -30,23 +30,30 @@ export default function Gastos() {
   const inputFoto = useRef(null)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState({ type: '', msg: '' })
+  const [fechaConsulta, setFechaConsulta] = useState(todayISO())
 
-  const cargar = async () => {
-    setLoading(true)
-    const [{ data: cats }, { data: gs }] = await Promise.all([
-      supabase.from('categorias_gasto').select('id, nombre').eq('activo', true).order('orden'),
-      supabase
-        .from('gastos')
-        .select('id, fecha, concepto, valor, metodo_pago, foto_url, created_at, categorias_gasto(nombre)')
-        .eq('fecha', todayISO())
-        .order('created_at', { ascending: false }),
-    ])
+  const cargarCategorias = async () => {
+    const { data: cats } = await supabase
+      .from('categorias_gasto')
+      .select('id, nombre')
+      .eq('activo', true)
+      .order('orden')
     setCategorias(cats ?? [])
+  }
+
+  const cargarGastos = async (fecha) => {
+    setLoading(true)
+    const { data: gs } = await supabase
+      .from('gastos')
+      .select('id, fecha, concepto, valor, metodo_pago, foto_url, created_at, categorias_gasto(nombre)')
+      .eq('fecha', fecha)
+      .order('created_at', { ascending: false })
     setGastos(gs ?? [])
     setLoading(false)
   }
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => { cargarCategorias() }, [])
+  useEffect(() => { cargarGastos(fechaConsulta) }, [fechaConsulta])
 
   const elegirFoto = () => inputFoto.current?.click()
 
@@ -114,7 +121,11 @@ export default function Gastos() {
 
     setStatus({ type: 'success', msg: 'Gasto registrado correctamente.' })
     limpiarFormulario()
-    await cargar()
+    if (fechaConsulta === todayISO()) {
+      await cargarGastos(fechaConsulta)
+    } else {
+      setFechaConsulta(todayISO())
+    }
   }
 
   const formValido =
@@ -150,10 +161,14 @@ export default function Gastos() {
             <input
               type="date"
               value={form.fecha}
-              onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
-              className="w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: 'var(--color-border)' }}
+              disabled
+              readOnly
+              className="w-full rounded-lg border px-3 py-2 text-sm cursor-not-allowed opacity-70"
+              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}
             />
+            <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-muted)' }}>
+              Los gastos solo se registran con la fecha de hoy.
+            </p>
           </div>
 
           <div>
@@ -244,13 +259,42 @@ export default function Gastos() {
       </div>
 
       <div className="card divide-y" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="px-4 py-3 flex items-center justify-between">
-          <p className="text-sm font-semibold">Gastos de hoy</p>
-          {!loading && gastos.length > 0 && (
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              Total: <span className="font-mono-num font-semibold">{currency(totalListado)}</span>
+        <div className="px-4 py-3 space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">
+              {fechaConsulta === todayISO() ? 'Gastos de hoy' : 'Gastos del día consultado'}
             </p>
-          )}
+            {!loading && gastos.length > 0 && (
+              <p className="text-xs shrink-0" style={{ color: 'var(--color-text-muted)' }}>
+                Total: <span className="font-mono-num font-semibold">{currency(totalListado)}</span>
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs shrink-0" style={{ color: 'var(--color-text-muted)' }}>
+              Consultar día:
+            </label>
+            <input
+              type="date"
+              value={fechaConsulta}
+              onChange={(e) => setFechaConsulta(e.target.value)}
+              className="rounded-lg border px-2.5 py-1.5 text-sm"
+              style={{ borderColor: 'var(--color-border)' }}
+            />
+            {fechaConsulta !== todayISO() && (
+              <button
+                type="button"
+                onClick={() => setFechaConsulta(todayISO())}
+                className="text-xs font-medium rounded-lg border px-2.5 py-1.5"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                Volver a hoy
+              </button>
+            )}
+          </div>
+          <p className="text-xs capitalize" style={{ color: 'var(--color-text-muted)' }}>
+            {longDate(fechaConsulta)}
+          </p>
         </div>
 
         {loading && (
