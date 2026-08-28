@@ -25,7 +25,7 @@ export default function Layout({ children }) {
     ? [
         { to: '/registrar', label: 'Registrar', icon: ICONS.registrar },
         { to: '/calendario', label: 'Calendario', icon: ICONS.calendario },
-        { to: '/panel', label: 'Panel', icon: ICONS.panel },
+        { to: '/panel', label: 'Dashboard', icon: ICONS.panel },
         { to: '/historial', label: 'Historial', icon: ICONS.historial },
         { to: '/clientes', label: 'Clientes', icon: ICONS.clientes },
         { to: '/servicios-manicurista', label: 'Servicios', icon: ICONS.servicios },
