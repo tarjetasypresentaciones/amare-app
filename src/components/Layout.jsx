@@ -79,7 +79,17 @@ export default function Layout({ children }) {
                 color: isActive ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-text-muted)',
               })}
             >
-              <span aria-hidden="true">{l.icon}</span>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  background: 'currentColor',
+                  opacity: 0.7,
+                  flexShrink: 0,
+                }}
+              />
               {l.label}
             </NavLink>
           ))}
@@ -135,7 +145,15 @@ export default function Layout({ children }) {
           >
             {({ isActive }) => (
               <>
-                <span style={{ fontSize: '1.2rem' }}>{l.icon}</span>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: isActive ? 'var(--color-primary)' : 'var(--color-border)',
+                  }}
+                />
                 <span style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: isActive ? 600 : 500 }}>
                   {l.label}
                 </span>
