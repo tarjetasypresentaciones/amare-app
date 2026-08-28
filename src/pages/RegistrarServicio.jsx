@@ -382,7 +382,7 @@ export default function RegistrarServicio() {
             type="button"
             onClick={agregarLinea}
             className="mt-2 text-xs font-medium rounded-full px-3 py-1.5"
-            style={{ border: '1px solid var(--color-border)' }}
+            style={{ border: '1px solid #E2D3AE', color: '#B58A54' }}
           >
             + Agregar otro servicio
           </button>
@@ -447,11 +447,13 @@ export default function RegistrarServicio() {
         </div>
 
         <div
-          className="flex items-center justify-between rounded-lg px-4 py-3"
-          style={{ background: 'var(--color-accent-soft)' }}
+          className="flex items-center justify-between px-5 py-4"
+          style={{ background: 'var(--color-accent-soft)', borderRadius: '6px' }}
         >
-          <span className="text-sm font-medium">Pagado a la manicurista</span>
-          <span className="font-mono-num font-semibold text-lg">{currency(pagadoPreview)}</span>
+          <span className="text-xs font-semibold" style={{ letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A7A4E' }}>
+            Pagado a la manicurista
+          </span>
+          <span className="font-display font-medium text-xl">{currency(pagadoPreview)}</span>
         </div>
 
         {status.msg && (
