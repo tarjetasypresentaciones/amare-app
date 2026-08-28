@@ -254,13 +254,13 @@ export default function RegistrarServicio() {
   return (
     <div className="max-w-lg">
       <p className="page-eyebrow">Amaré Atelier</p>
-      <h2 className="font-display text-2xl mb-1">Registrar servicio</h2>
-      <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
+      <h2 className="font-display text-4xl mb-2">Registrar servicio</h2>
+      <p className="text-sm mb-9" style={{ color: 'var(--color-text-muted)' }}>
         Anota cada servicio apenas se realice para que el cierre del día quede exacto.
       </p>
 
-      <form onSubmit={handleSubmit} className="card p-5 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="card p-9 space-y-6">
+        <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-1">Fecha</label>
             <input
@@ -388,7 +388,7 @@ export default function RegistrarServicio() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-1">Costo adicional (COP)</label>
             <input
