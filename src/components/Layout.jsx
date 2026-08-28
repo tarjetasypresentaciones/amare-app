@@ -57,14 +57,14 @@ export default function Layout({ children }) {
       {(isAdmin || isEmpleadoAdmin) && <AlertaAperturaCaja />}
       {/* Barra lateral — escritorio */}
       <aside
-        className="hidden md:flex md:flex-col md:w-64 md:shrink-0 border-r"
-        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+        className="hidden md:flex md:flex-col md:w-64 md:shrink-0"
+        style={{ background: 'var(--color-sidebar-bg)' }}
       >
         <div className="px-6 pt-8 pb-6">
-          <h1 className="font-display italic text-3xl" style={{ color: 'var(--color-primary)' }}>
+          <h1 className="font-display italic text-3xl" style={{ color: 'var(--color-sidebar-text)' }}>
             Amaré
           </h1>
-          <p className="text-xs mt-1 tracking-wide uppercase" style={{ color: 'var(--color-text-muted)' }}>
+          <p className="text-xs mt-1 tracking-wide uppercase" style={{ color: 'var(--color-sidebar-text-muted)' }}>
             Panel de servicios
           </p>
         </div>
@@ -73,14 +73,10 @@ export default function Layout({ children }) {
             <NavLink
               key={l.to}
               to={l.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? 'text-white' : 'hover:bg-black/5'
-                }`
-              }
+              className="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
               style={({ isActive }) => ({
-                background: isActive ? 'var(--color-primary)' : 'transparent',
-                color: isActive ? '#fff' : 'var(--color-text)',
+                background: isActive ? 'var(--color-sidebar-active-bg)' : 'transparent',
+                color: isActive ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-text-muted)',
               })}
             >
               <span aria-hidden="true">{l.icon}</span>
@@ -88,17 +84,17 @@ export default function Layout({ children }) {
             </NavLink>
           ))}
         </nav>
-        <div className="px-4 py-5 border-t flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="px-4 py-5 flex items-center gap-3" style={{ borderTop: '1px solid var(--color-sidebar-border)' }}>
           {!isAdmin && !isEmpleadoAdmin && <Avatar url={profile?.manicuristas?.foto_url} nombre={profile?.nombre_completo} size={36} />}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate">{profile?.nombre_completo}</p>
-            <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--color-sidebar-text)' }}>{profile?.nombre_completo}</p>
+            <p className="text-xs mb-2" style={{ color: 'var(--color-sidebar-text-muted)' }}>
               {isAdmin ? 'Administradora/or' : isEmpleadoAdmin ? 'Empleado admin' : 'Manicurista'}
             </p>
             <button
               onClick={handleSignOut}
               className="text-sm font-medium"
-              style={{ color: 'var(--color-danger)' }}
+              style={{ color: 'var(--color-accent)' }}
             >
               Cerrar sesión
             </button>
