@@ -89,7 +89,7 @@ label {
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.6rem;
+  border-radius: 4px;
 }
 
 /* Enlaces del sidebar oscuro: hover sutil que no se puede lograr con estilos inline */
@@ -133,7 +133,7 @@ textarea:focus {
 input:disabled,
 select:disabled,
 textarea:disabled {
-  border-bottom-style: dashed !important;
+  opacity: 0.75;
 }
 
 /* Botón de acción principal: mayúsculas espaciadas, igual a la maqueta */
@@ -141,6 +141,7 @@ button[type="submit"] {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.75rem !important;
+  border-radius: 4px !important;
 }
 
 /* Línea divisoria fina entre grupos de campos de un formulario */
