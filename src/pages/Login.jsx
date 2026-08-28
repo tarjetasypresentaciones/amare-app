@@ -1,6 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import logoAmare from '../assets/logo-amare.png'
+import './Login.css'
+
+// Fotos del local para el carrusel de fondo (public/login-bg/bg-01.jpg … bg-09.jpg)
+const BG_IMAGES = Array.from({ length: 9 }, (_, i) => `/login-bg/bg-${String(i + 1).padStart(2, '0')}.jpg`)
+const DISPLAY_MS = 1800
 
 export default function Login() {
   const { signIn } = useAuth()
@@ -10,6 +16,17 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [current, setCurrent] = useState(0)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) return undefined
+    timerRef.current = setInterval(() => {
+      setCurrent((c) => (c + 1) % BG_IMAGES.length)
+    }, DISPLAY_MS)
+    return () => clearInterval(timerRef.current)
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,25 +43,27 @@ export default function Login() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: 'var(--color-bg)' }}
-    >
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="font-display italic text-5xl" style={{ color: 'var(--color-primary)' }}>
-            Amaré
-          </h1>
-          <p className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            Ingresa para registrar y consultar servicios
-          </p>
+    <div className="login-stage">
+      {BG_IMAGES.map((src, i) => (
+        <div
+          key={src}
+          className={`login-bg-layer${i === current ? ' active' : ''}`}
+          style={{ backgroundImage: `url(${src})` }}
+        />
+      ))}
+      <div className="login-scrim" />
+
+      <div className="login-content">
+        <div className="login-logo-badge">
+          <img src={logoAmare} alt="Amaré Atelier" />
         </div>
 
-        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Correo
-            </label>
+        <form onSubmit={handleSubmit} className="login-panel">
+          <h1>Bienvenida de vuelta</h1>
+          <p className="login-sub">Ingresa para registrar y consultar servicios</p>
+
+          <div className="login-field">
+            <label htmlFor="email">Correo</label>
             <input
               id="email"
               type="email"
@@ -52,15 +71,11 @@ export default function Login() {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: 'var(--color-border)' }}
               placeholder="tunombre@amare.com"
             />
           </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-1">
-              Contraseña
-            </label>
+          <div className="login-field">
+            <label htmlFor="password">Contraseña</label>
             <input
               id="password"
               type="password"
@@ -68,31 +83,30 @@ export default function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: 'var(--color-border)' }}
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <p role="alert" className="text-sm rounded-lg px-3 py-2" style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}>
+            <p role="alert" className="login-error">
               {error}
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            style={{ background: 'var(--color-primary)' }}
-          >
+          <button type="submit" disabled={loading} className="login-btn">
             {loading ? 'Ingresando…' : 'Ingresar'}
           </button>
-        </form>
 
-        <p className="text-center text-xs mt-6" style={{ color: 'var(--color-text-muted)' }}>
-          ¿No tienes acceso? Pídele a un administrador que te cree una cuenta.
-        </p>
+          <p className="login-foot">
+            ¿No tienes acceso? Pídele a un administrador que te cree una cuenta.
+          </p>
+        </form>
+      </div>
+
+      <div className="login-dots">
+        {BG_IMAGES.map((src, i) => (
+          <span key={src} className={i === current ? 'active' : ''} />
+        ))}
       </div>
     </div>
   )
