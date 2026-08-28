@@ -253,6 +253,7 @@ export default function RegistrarServicio() {
 
   return (
     <div className="max-w-lg">
+      <p className="page-eyebrow">Amaré Atelier</p>
       <h2 className="font-display text-2xl mb-1">Registrar servicio</h2>
       <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
         Anota cada servicio apenas se realice para que el cierre del día quede exacto.
@@ -288,6 +289,8 @@ export default function RegistrarServicio() {
             </select>
           </div>
         </div>
+
+        <div className="form-divider" />
 
         {puedeOperar && (
           <div>
