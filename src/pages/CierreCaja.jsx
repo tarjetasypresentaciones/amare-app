@@ -7,7 +7,8 @@ const BUCKET_FOTOS_CIERRE = 'fotos-cierres'
 
 export default function CierreCaja() {
   const { profile } = useAuth()
-  const [fecha, setFecha] = useState(todayISO())
+  const hoy = todayISO()
+  const [fecha, setFecha] = useState(hoy)
   const [cierre, setCierre] = useState(null)
   const [cierreAnterior, setCierreAnterior] = useState(null)
   const [historial, setHistorial] = useState([])
@@ -602,17 +603,25 @@ export default function CierreCaja() {
 
         {!cierre ? (
           <div className="text-center py-6">
-            <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
-              Aún no hay cierre generado para este día.
-            </p>
-            <button
-              onClick={generar}
-              disabled={busy}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: 'var(--color-primary)' }}
-            >
-              {busy ? 'Generando…' : 'Generar cierre de este día'}
-            </button>
+            {fecha > hoy ? (
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Este día aún no ha ocurrido — vuelve cuando llegue la fecha.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
+                  Aún no hay cierre generado para este día.
+                </p>
+                <button
+                  onClick={generar}
+                  disabled={busy}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  {busy ? 'Generando…' : 'Generar cierre de este día'}
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -662,7 +671,7 @@ export default function CierreCaja() {
                   Confirmar cierre
                 </button>
               )}
-              {cierre.estado === 'confirmado' && !cierre.reapertura_usada && !mostrarReapertura && (
+              {cierre.estado === 'confirmado' && fecha === hoy && !cierre.reapertura_usada && !mostrarReapertura && (
                 <button
                   onClick={() => setMostrarReapertura(true)}
                   disabled={busy}
