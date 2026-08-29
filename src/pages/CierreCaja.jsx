@@ -34,6 +34,12 @@ export default function CierreCaja() {
 
   const [status, setStatus] = useState('')
 
+  // --- Reapertura de un cierre confirmado (solo una vez) ---
+  const [mostrarReapertura, setMostrarReapertura] = useState(false)
+  const [motivoReapertura, setMotivoReapertura] = useState('')
+  const [reabriendo, setReabriendo] = useState(false)
+  const [statusReapertura, setStatusReapertura] = useState('')
+
   const cargar = async () => {
     setLoading(true)
     const fechaAnterior = addDaysISO(fecha, -1)
@@ -89,6 +95,24 @@ export default function CierreCaja() {
     await supabase.rpc('confirmar_cierre', { p_fecha: fecha })
     await cargar()
     setBusy(false)
+  }
+
+  const reabrir = async () => {
+    if (!motivoReapertura.trim()) {
+      setStatusReapertura('Escribe el motivo de la reapertura.')
+      return
+    }
+    setReabriendo(true)
+    setStatusReapertura('')
+    const { error } = await supabase.rpc('reabrir_cierre', { p_fecha: fecha, p_motivo: motivoReapertura.trim() })
+    setReabriendo(false)
+    if (error) {
+      setStatusReapertura('No se pudo reabrir: ' + error.message)
+      return
+    }
+    setMostrarReapertura(false)
+    setMotivoReapertura('')
+    await cargar()
   }
 
   const cambiarConfig = async (valor) => {
@@ -668,7 +692,7 @@ export default function CierreCaja() {
               >
                 Recalcular
               </button>
-              {cierre.estado === 'pendiente' && (
+              {cierre.estado !== 'confirmado' && (
                 <button
                   onClick={confirmar}
                   disabled={busy}
@@ -678,7 +702,65 @@ export default function CierreCaja() {
                   Confirmar cierre
                 </button>
               )}
+              {cierre.estado === 'confirmado' && !cierre.reapertura_usada && !mostrarReapertura && (
+                <button
+                  onClick={() => setMostrarReapertura(true)}
+                  disabled={busy}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                  style={{ border: '1px solid var(--color-danger)', color: 'var(--color-danger)' }}
+                >
+                  Reabrir día
+                </button>
+              )}
             </div>
+
+            {cierre.estado === 'confirmado' && (
+              <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
+                Este día está cerrado: no se pueden registrar más servicios ni gastos con esta fecha.
+              </p>
+            )}
+
+            {mostrarReapertura && (
+              <div className="mt-3 p-3 rounded-lg" style={{ background: 'var(--color-danger-soft)' }}>
+                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-danger)' }}>
+                  Vas a reabrir este día. Solo se puede hacer una vez — explica por qué.
+                </p>
+                <textarea
+                  value={motivoReapertura}
+                  onChange={(e) => setMotivoReapertura(e.target.value)}
+                  placeholder="Ej: faltó registrar un servicio de la manicurista X"
+                  rows={2}
+                  className="w-full text-sm mb-2"
+                  style={{ borderBottom: '1px solid var(--color-border)', background: 'transparent' }}
+                />
+                {statusReapertura && (
+                  <p className="text-xs mb-2" style={{ color: 'var(--color-danger)' }}>{statusReapertura}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={reabrir}
+                    disabled={reabriendo}
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                    style={{ background: 'var(--color-danger)' }}
+                  >
+                    {reabriendo ? 'Reabriendo…' : 'Confirmar reapertura'}
+                  </button>
+                  <button
+                    onClick={() => { setMostrarReapertura(false); setMotivoReapertura(''); setStatusReapertura('') }}
+                    className="text-xs font-medium"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {cierre.reapertura_usada && (
+              <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
+                Reabierto el {dateTimeShort(cierre.reabierto_at)} — motivo: "{cierre.reabierto_motivo}"
+              </p>
+            )}
           </>
         )}
       </div>
