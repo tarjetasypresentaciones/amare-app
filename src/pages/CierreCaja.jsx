@@ -11,7 +11,6 @@ export default function CierreCaja() {
   const [cierre, setCierre] = useState(null)
   const [cierreAnterior, setCierreAnterior] = useState(null)
   const [historial, setHistorial] = useState([])
-  const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
 
@@ -58,16 +57,14 @@ export default function CierreCaja() {
       finHistorial = addDaysISO(hoy, -1)
     }
 
-    const [{ data: c }, { data: cAnt }, { data: h }, { data: cfg }] = await Promise.all([
+    const [{ data: c }, { data: cAnt }, { data: h }] = await Promise.all([
       supabase.from('cierres_caja').select('*').eq('fecha', fecha).maybeSingle(),
       supabase.from('cierres_caja').select('efectivo_caja_siguiente').eq('fecha', fechaAnterior).maybeSingle(),
       supabase.from('cierres_caja').select('*').gte('fecha', inicioHistorial).lte('fecha', finHistorial).order('fecha', { ascending: false }),
-      supabase.from('configuracion').select('*').eq('id', 1).single(),
     ])
     setCierre(c)
     setCierreAnterior(cAnt)
     setHistorial(h ?? [])
-    setConfig(cfg)
     setLoading(false)
 
     // El campo de apertura empieza vacío a propósito: es un conteo ciego,
@@ -112,16 +109,6 @@ export default function CierreCaja() {
     }
     setMostrarReapertura(false)
     setMotivoReapertura('')
-    await cargar()
-  }
-
-  const cambiarConfig = async (valor) => {
-    await supabase.from('configuracion').update({ requiere_confirmacion_cierre: valor }).eq('id', 1)
-    setConfig((c) => ({ ...c, requiere_confirmacion_cierre: valor }))
-    // Recalcula el cierre del día que se está viendo para que su estado
-    // (pendiente / cerrado automáticamente) refleje el nuevo ajuste al instante,
-    // sin necesidad de recargar la página.
-    await supabase.rpc('generar_cierre_dia', { p_fecha: fecha })
     await cargar()
   }
 
@@ -314,35 +301,8 @@ export default function CierreCaja() {
     <div className="max-w-2xl">
       <h2 className="font-display text-2xl mb-1">Cierre de caja</h2>
       <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
-        El cierre se recalcula solo con cada servicio registrado. Puedes exigir confirmación manual si lo prefieres.
+        El cierre del día queda pendiente hasta que lo confirmes manualmente. Una vez confirmado, ese día no admite más servicios ni gastos.
       </p>
-
-      <div className="card p-4 mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium">Requerir confirmación manual del cierre</p>
-          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Si está activo, el cierre del día queda "pendiente" hasta que un admin lo confirme.
-          </p>
-        </div>
-        <button
-          role="switch"
-          aria-checked={config?.requiere_confirmacion_cierre}
-          onClick={() => cambiarConfig(!config?.requiere_confirmacion_cierre)}
-          className="w-12 h-7 rounded-full relative shrink-0 transition-colors cursor-pointer border"
-          style={{
-            background: config?.requiere_confirmacion_cierre ? 'var(--color-primary)' : '#D9D2D4',
-            borderColor: config?.requiere_confirmacion_cierre ? 'var(--color-primary-dark)' : '#C3BABC',
-          }}
-        >
-          <span
-            className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition-transform"
-            style={{
-              transform: config?.requiere_confirmacion_cierre ? 'translateX(20px)' : 'translateX(0)',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
-            }}
-          />
-        </button>
-      </div>
 
       {/* --- Caja del día --- */}
       <div className="card p-5 mb-6">
