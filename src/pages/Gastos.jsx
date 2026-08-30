@@ -30,6 +30,7 @@ export default function Gastos() {
   const inputFoto = useRef(null)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState({ type: '', msg: '' })
+  const [cargaHistorica, setCargaHistorica] = useState(false)
   const [fechaConsulta, setFechaConsulta] = useState(todayISO())
 
   const cargarCategorias = async () => {
@@ -58,7 +59,7 @@ export default function Gastos() {
   const elegirFoto = () => inputFoto.current?.click()
 
   const limpiarFormulario = () => {
-    setForm({ ...FORM_VACIO })
+    setForm((f) => ({ ...FORM_VACIO, fecha: cargaHistorica ? f.fecha : todayISO() }))
     setArchivo(null)
     if (inputFoto.current) inputFoto.current.value = ''
   }
@@ -143,6 +144,34 @@ export default function Gastos() {
       <div className="card p-5 mb-6">
         <p className="font-display text-lg mb-4">Registrar gasto</p>
 
+        <div className="flex items-center justify-between rounded-lg px-3 py-2 mb-4" style={{ background: 'var(--color-accent-soft)' }}>
+          <div>
+            <p className="text-xs font-semibold" style={{ color: '#8A7A4E' }}>Modo carga histórica</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Actívalo para registrar gastos de días anteriores.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={cargaHistorica}
+            onClick={() => {
+              setCargaHistorica((v) => !v)
+              setForm((f) => ({ ...f, fecha: todayISO() }))
+            }}
+            className="w-11 h-6 rounded-full relative shrink-0 transition-colors cursor-pointer border"
+            style={{
+              background: cargaHistorica ? 'var(--color-primary)' : '#D9D2D4',
+              borderColor: cargaHistorica ? 'var(--color-primary-dark)' : '#C3BABC',
+            }}
+          >
+            <span
+              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+              style={{ transform: cargaHistorica ? 'translateX(18px)' : 'translateX(0)', boxShadow: '0 1px 3px rgba(0,0,0,0.35)' }}
+            />
+          </button>
+        </div>
+
         {status.msg && (
           <p
             className="text-sm mb-4 rounded-lg px-3 py-2"
@@ -161,13 +190,17 @@ export default function Gastos() {
             <input
               type="date"
               value={form.fecha}
-              disabled
-              readOnly
-              className="w-full rounded-lg border px-3 py-2 text-sm cursor-not-allowed opacity-70"
-              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}
+              disabled={!cargaHistorica}
+              readOnly={!cargaHistorica}
+              max={todayISO()}
+              onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+              className={`w-full rounded-lg border px-3 py-2 text-sm ${!cargaHistorica ? 'cursor-not-allowed opacity-70' : ''}`}
+              style={{ borderColor: 'var(--color-border)', background: cargaHistorica ? 'var(--color-surface)' : 'var(--color-bg)' }}
             />
             <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-muted)' }}>
-              Los gastos solo se registran con la fecha de hoy.
+              {cargaHistorica
+                ? 'Modo carga histórica activo: puedes elegir cualquier fecha pasada.'
+                : 'Los gastos solo se registran con la fecha de hoy.'}
             </p>
           </div>
 
