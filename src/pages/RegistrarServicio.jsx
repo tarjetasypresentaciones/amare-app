@@ -38,6 +38,7 @@ export default function RegistrarServicio() {
   const [status, setStatus] = useState({ type: '', msg: '' })
   const [saving, setSaving] = useState(false)
   const [recibo, setRecibo] = useState(null)
+  const [cargaHistorica, setCargaHistorica] = useState(false)
   const horaImpresionRef = useRef(null)
 
   useEffect(() => {
@@ -179,7 +180,7 @@ export default function RegistrarServicio() {
     const { data: userData } = await supabase.auth.getUser()
     const cliente = clientes.find((c) => c.id === form.cliente_id)
     const clienteNombre = cliente ? `${cliente.nombre} ${cliente.apellido}` : null
-    const fechaHoy = todayISO()
+    const fechaRegistro = form.fecha || todayISO()
 
     // Un número de recibo por visita (no por línea) — manicure + pedicure
     // guardados juntos comparten el mismo número.
@@ -192,7 +193,7 @@ export default function RegistrarServicio() {
     const numeroRecibo = numeroData
 
     const filas = lineasConDatos.map((l, i) => ({
-      fecha: fechaHoy,
+      fecha: fechaRegistro,
       manicurista_id: form.manicurista_id,
       cliente_id: form.cliente_id || null,
       cliente_nombre: clienteNombre,
@@ -216,20 +217,31 @@ export default function RegistrarServicio() {
     }
 
     const plural = filas.length > 1 ? `${filas.length} servicios guardados` : 'Servicio guardado'
-    setStatus({ type: 'success', msg: `${plural} — Recibo de Caja N.º ${numeroRecibo}. Se le paga ${currency(pagadoPreview)} a la manicurista.` })
+    setStatus({
+      type: 'success',
+      msg: cargaHistorica
+        ? `${plural} (carga histórica, fecha ${fechaRegistro}) — sin recibo de caja.`
+        : `${plural} — Recibo de Caja N.º ${numeroRecibo}. Se le paga ${currency(pagadoPreview)} a la manicurista.`,
+    })
 
     const manicurista = manicuristas.find((m) => m.id === form.manicurista_id)
-    setRecibo({
-      numero: numeroRecibo,
-      fecha: fechaHoy,
-      manicurista: manicurista?.nombre ?? '',
-      cliente: clienteNombre,
-      metodo_pago: METODOS.find((m) => m.value === form.metodo_pago)?.label ?? form.metodo_pago,
-      lineas: filas.map((f) => ({ tipo_servicio: f.tipo_servicio, costo: f.costo })),
-      costoAdicional: costoAdicionalNum,
-      observaciones: form.observaciones.trim(),
-      total: costoTotalNum,
-    })
+    // En modo carga histórica no se genera recibo imprimible: son servicios
+    // atrasados, no una venta que se esté cobrando en el momento.
+    if (!cargaHistorica) {
+      setRecibo({
+        numero: numeroRecibo,
+        fecha: fechaRegistro,
+        manicurista: manicurista?.nombre ?? '',
+        cliente: clienteNombre,
+        metodo_pago: METODOS.find((m) => m.value === form.metodo_pago)?.label ?? form.metodo_pago,
+        lineas: filas.map((f) => ({ tipo_servicio: f.tipo_servicio, costo: f.costo })),
+        costoAdicional: costoAdicionalNum,
+        observaciones: form.observaciones.trim(),
+        total: costoTotalNum,
+      })
+    } else {
+      setRecibo(null)
+    }
 
     setForm((f) => ({ ...f, cliente_id: '', costoAdicional: '', observaciones: '' }))
     setLineas([{ ...LINEA_VACIA }])
@@ -260,19 +272,51 @@ export default function RegistrarServicio() {
       </p>
 
       <form onSubmit={handleSubmit} className="card p-9 space-y-6">
+        <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: 'var(--color-accent-soft)' }}>
+          <div>
+            <p className="text-xs font-semibold" style={{ color: '#8A7A4E' }}>Modo carga histórica</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Actívalo para registrar servicios de días anteriores (ej. antes de usar la app).
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={cargaHistorica}
+            onClick={() => {
+              setCargaHistorica((v) => !v)
+              setForm((f) => ({ ...f, fecha: todayISO() }))
+            }}
+            className="w-11 h-6 rounded-full relative shrink-0 transition-colors cursor-pointer border"
+            style={{
+              background: cargaHistorica ? 'var(--color-primary)' : '#D9D2D4',
+              borderColor: cargaHistorica ? 'var(--color-primary-dark)' : '#C3BABC',
+            }}
+          >
+            <span
+              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+              style={{ transform: cargaHistorica ? 'translateX(18px)' : 'translateX(0)', boxShadow: '0 1px 3px rgba(0,0,0,0.35)' }}
+            />
+          </button>
+        </div>
+
         <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-1">Fecha</label>
             <input
               type="date"
               value={form.fecha}
-              disabled
-              readOnly
-              className="w-full rounded-lg border px-3 py-2 text-sm cursor-not-allowed opacity-70"
-              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}
+              disabled={!cargaHistorica}
+              readOnly={!cargaHistorica}
+              max={todayISO()}
+              onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+              className={`w-full rounded-lg border px-3 py-2 text-sm ${!cargaHistorica ? 'cursor-not-allowed opacity-70' : ''}`}
+              style={{ borderColor: 'var(--color-border)', background: cargaHistorica ? 'var(--color-surface)' : 'var(--color-bg)' }}
             />
             <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-              Los servicios solo se registran con la fecha de hoy.
+              {cargaHistorica
+                ? 'Modo carga histórica activo: puedes elegir cualquier fecha pasada.'
+                : 'Los servicios solo se registran con la fecha de hoy.'}
             </p>
           </div>
           <div>
