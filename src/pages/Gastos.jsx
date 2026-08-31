@@ -30,6 +30,7 @@ export default function Gastos() {
   const inputFoto = useRef(null)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState({ type: '', msg: '' })
+  const [faltaApertura, setFaltaApertura] = useState(false)
   const [fechaConsulta, setFechaConsulta] = useState(todayISO())
 
   const cargarCategorias = async () => {
@@ -54,6 +55,18 @@ export default function Gastos() {
 
   useEffect(() => { cargarCategorias() }, [])
   useEffect(() => { cargarGastos(fechaConsulta) }, [fechaConsulta])
+
+  // Si todavía no se ha registrado el conteo de efectivo de apertura de
+  // hoy, la base de datos va a rechazar el guardado — avisamos antes de
+  // que la persona llene todo el formulario.
+  useEffect(() => {
+    supabase
+      .from('cierres_caja')
+      .select('efectivo_apertura')
+      .eq('fecha', todayISO())
+      .maybeSingle()
+      .then(({ data }) => setFaltaApertura(!data?.efectivo_apertura))
+  }, [])
 
   const elegirFoto = () => inputFoto.current?.click()
 
@@ -129,7 +142,7 @@ export default function Gastos() {
   }
 
   const formValido =
-    form.categoria_id && form.concepto.trim() && parseFloat(form.valor) > 0 && archivo && !saving
+    !faltaApertura && form.categoria_id && form.concepto.trim() && parseFloat(form.valor) > 0 && archivo && !saving
 
   const totalListado = gastos.reduce((acc, g) => acc + Number(g.valor), 0)
 
@@ -142,6 +155,12 @@ export default function Gastos() {
 
       <div className="card p-5 mb-6">
         <p className="font-display text-lg mb-4">Registrar gasto</p>
+
+        {faltaApertura && (
+          <div className="rounded-lg px-4 py-3 mb-4 text-sm" style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}>
+            Falta el conteo de efectivo de apertura de hoy — regístralo desde <strong>Cierre de caja</strong> antes de continuar.
+          </div>
+        )}
 
         {status.msg && (
           <p

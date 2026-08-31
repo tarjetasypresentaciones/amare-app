@@ -38,6 +38,7 @@ export default function RegistrarServicio() {
   const [status, setStatus] = useState({ type: '', msg: '' })
   const [saving, setSaving] = useState(false)
   const [recibo, setRecibo] = useState(null)
+  const [faltaApertura, setFaltaApertura] = useState(false)
   const horaImpresionRef = useRef(null)
 
   useEffect(() => {
@@ -76,6 +77,16 @@ export default function RegistrarServicio() {
       .eq('fecha', todayISO())
       .eq('estado', 'aprobado')
       .then(({ data }) => setIdsConDiaLibreHoy((data ?? []).map((d) => d.manicurista_id)))
+
+    // Si todavía no se ha registrado el conteo de efectivo de apertura de
+    // hoy, la base de datos va a rechazar el guardado — avisamos antes de
+    // que la persona llene todo el formulario.
+    supabase
+      .from('cierres_caja')
+      .select('efectivo_apertura')
+      .eq('fecha', todayISO())
+      .maybeSingle()
+      .then(({ data }) => setFaltaApertura(!data?.efectivo_apertura))
   }, [])
 
   useEffect(() => {
@@ -139,6 +150,7 @@ export default function RegistrarServicio() {
   const requiereObservacion = costoAdicionalNum > 0
 
   const puedeGuardar =
+    !faltaApertura &&
     !!form.manicurista_id &&
     !!form.metodo_pago &&
     lineas.every((l) => !!l.tipo_servicio_id) &&
@@ -261,6 +273,12 @@ export default function RegistrarServicio() {
       <p className="text-sm mb-9" style={{ color: 'var(--color-text-muted)' }}>
         Anota cada servicio apenas se realice para que el cierre del día quede exacto.
       </p>
+
+      {faltaApertura && (
+        <div className="rounded-lg px-4 py-3 mb-6 text-sm" style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}>
+          Falta el conteo de efectivo de apertura de hoy — regístralo desde <strong>Cierre de caja</strong> antes de continuar.
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="card p-9 space-y-6">
         <div className="grid grid-cols-2 gap-6">
