@@ -15,6 +15,25 @@ const diasDelMes = (isoDate) => {
   return new Date(y, m, 0).getDate()
 }
 
+// Último día ISO del mes dado en formato 'AAAA-MM'
+const finDeMesISO = (aaaaMM) => {
+  const [y, m] = aaaaMM.split('-').map(Number)
+  const ultimoDia = new Date(y, m, 0).getDate()
+  return `${aaaaMM}-${String(ultimoDia).padStart(2, '0')}`
+}
+
+// Opciones de mes para el selector: desde el mes actual hacia atrás
+const opcionesDeMes = (hoy, cantidad = 24) => {
+  const [y0, m0] = hoy.slice(0, 7).split('-').map(Number)
+  const meses = []
+  for (let i = 0; i < cantidad; i++) {
+    const d = new Date(y0, m0 - 1 - i, 1)
+    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    meses.push({ valor, etiqueta: longMonth(valor + '-01') })
+  }
+  return meses
+}
+
 export default function PanelAdmin() {
   const [registros, setRegistros] = useState([])
   const [gastos, setGastos] = useState([])
@@ -25,14 +44,30 @@ export default function PanelAdmin() {
   const [guardandoMeta, setGuardandoMeta] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  const hoy = todayISO()
+  // Mes que se está viendo en el dashboard, formato 'AAAA-MM'. Por defecto, el mes actual.
+  const [mesVista, setMesVista] = useState(hoy.slice(0, 7))
+  const inicioMesVista = mesVista + '-01'
+  const finMesVista = finDeMesISO(mesVista)
+  const esMesActual = mesVista === hoy.slice(0, 7)
+  // Último día con datos a mostrar dentro del mes vista: si es el mes en curso, hasta hoy; si es un mes pasado, hasta su fin
+  const finVisibleMes = esMesActual ? hoy : finMesVista
+
   useEffect(() => {
-    const desde = daysAgoISO(180) // suficiente para vistas semanal/mensual
+    // Ventana de consulta: siempre cubre el mes seleccionado, y además los últimos 180 días
+    // (para que el gráfico de "últimas 8 semanas", que es relativo a hoy, no se quede corto)
+    const desde180 = daysAgoISO(180)
+    const desde = inicioMesVista < desde180 ? inicioMesVista : desde180
+    const hasta = finMesVista > hoy ? finMesVista : hoy
+
+    setLoading(true)
     Promise.all([
       supabase
         .from('registros_servicios')
         .select('fecha, costo, pagado_manicurista, manicurista_id, manicuristas(nombre, color)')
-        .gte('fecha', desde),
-      supabase.from('gastos').select('fecha, valor, categorias_gasto(nombre)').gte('fecha', desde),
+        .gte('fecha', desde)
+        .lte('fecha', hasta),
+      supabase.from('gastos').select('fecha, valor, categorias_gasto(nombre)').gte('fecha', desde).lte('fecha', hasta),
       supabase.from('manicuristas').select('id, nombre, color, activo').order('nombre'),
       supabase.from('configuracion').select('meta_mensual').eq('id', 1).maybeSingle(),
     ]).then(([r, g, m, cfg]) => {
@@ -42,7 +77,7 @@ export default function PanelAdmin() {
       if (cfg.data?.meta_mensual) setMetaMensual(Number(cfg.data.meta_mensual))
       setLoading(false)
     })
-  }, [])
+  }, [mesVista])
 
   const abrirEdicionMeta = () => {
     setMetaInput(String(metaMensual))
@@ -61,15 +96,12 @@ export default function PanelAdmin() {
     }
   }
 
-  const hoy = todayISO()
-
   const resumen = useMemo(() => {
     const inicioSemana = startOfWeekISO(hoy)
-    const inicioMes = hoy.slice(0, 7) + '-01'
 
     const deHoy = registros.filter((r) => r.fecha === hoy)
     const deSemana = registros.filter((r) => r.fecha >= inicioSemana)
-    const deMes = registros.filter((r) => r.fecha >= inicioMes)
+    const deMes = registros.filter((r) => r.fecha >= inicioMesVista && r.fecha <= finMesVista)
 
     const sum = (arr, key) => arr.reduce((s, r) => s + Number(r[key]), 0)
 
@@ -78,7 +110,7 @@ export default function PanelAdmin() {
       semana: { ingresos: sum(deSemana, 'costo'), pagado: sum(deSemana, 'pagado_manicurista'), n: deSemana.length },
       mes: { ingresos: sum(deMes, 'costo'), pagado: sum(deMes, 'pagado_manicurista'), n: deMes.length },
     }
-  }, [registros, hoy])
+  }, [registros, hoy, inicioMesVista, finMesVista])
 
   // Últimas 8 semanas: ingresos netos del spa
   const porSemana = useMemo(() => {
@@ -96,29 +128,28 @@ export default function PanelAdmin() {
       .map((s) => ({ ...s, neto: s.ingresos - s.pagado, label: s.semana.slice(5) }))
   }, [registros])
 
-  // Neto diario del mes en curso: (ingresos del spa ya sin comisión) - gastos del día
+  // Neto diario del mes seleccionado: (ingresos del spa ya sin comisión) - gastos del día
   const netoDiarioMes = useMemo(() => {
-    const inicioMes = startOfMonthISO(hoy)
     const netoPorFecha = new Map()
     registros
-      .filter((r) => r.fecha >= inicioMes && r.fecha <= hoy)
+      .filter((r) => r.fecha >= inicioMesVista && r.fecha <= finVisibleMes)
       .forEach((r) => {
         const netoServicio = Number(r.costo) - Number(r.pagado_manicurista)
         netoPorFecha.set(r.fecha, (netoPorFecha.get(r.fecha) ?? 0) + netoServicio)
       })
     gastos
-      .filter((g) => g.fecha >= inicioMes && g.fecha <= hoy)
+      .filter((g) => g.fecha >= inicioMesVista && g.fecha <= finVisibleMes)
       .forEach((g) => {
         netoPorFecha.set(g.fecha, (netoPorFecha.get(g.fecha) ?? 0) - Number(g.valor))
       })
 
-    // Un punto por cada día del mes hasta hoy (aunque no haya movimientos, para que la barra no "salte" días)
+    // Un punto por cada día del mes hasta el límite visible (aunque no haya movimientos, para que la barra no "salte" días)
     const dias = []
-    for (let f = inicioMes; f <= hoy; f = addDaysISO(f, 1)) {
+    for (let f = inicioMesVista; f <= finVisibleMes; f = addDaysISO(f, 1)) {
       dias.push({ fecha: f, dia: f.slice(8, 10), neto: Math.round(netoPorFecha.get(f) ?? 0) })
     }
     return dias
-  }, [registros, gastos, hoy])
+  }, [registros, gastos, inicioMesVista, finVisibleMes])
 
   // Acumulado del mes en curso, con la meta mínima como referencia
   const acumuladoMes = useMemo(() => {
@@ -130,15 +161,14 @@ export default function PanelAdmin() {
   }, [netoDiarioMes])
 
   const totalAcumuladoMes = acumuladoMes.length ? acumuladoMes[acumuladoMes.length - 1].acumulado : 0
-  const metaDiaria = Math.ceil(metaMensual / diasDelMes(hoy))
+  const metaDiaria = Math.ceil(metaMensual / diasDelMes(inicioMesVista))
 
-  // Gastos por categoría (mes en curso), para la dona
+  // Gastos por categoría (mes seleccionado), para la dona
   const COLORES_DONA = ['#55300A', '#C9A24B', '#B3462C', '#7C8B6F', '#8A8070', '#D9B978', '#6E4315', '#A9977B']
   const gastosPorCategoria = useMemo(() => {
-    const inicioMes = startOfMonthISO(hoy)
     const map = new Map()
     gastos
-      .filter((g) => g.fecha >= inicioMes && g.fecha <= hoy)
+      .filter((g) => g.fecha >= inicioMesVista && g.fecha <= finVisibleMes)
       .forEach((g) => {
         const nombre = g.categorias_gasto?.nombre ?? 'Sin categoría'
         map.set(nombre, (map.get(nombre) ?? 0) + Number(g.valor))
@@ -146,13 +176,12 @@ export default function PanelAdmin() {
     return [...map.entries()]
       .map(([nombre, valor]) => ({ nombre, valor }))
       .sort((a, b) => b.valor - a.valor)
-  }, [gastos, hoy])
+  }, [gastos, inicioMesVista, finVisibleMes])
   const totalGastosMes = gastosPorCategoria.reduce((s, g) => s + g.valor, 0)
 
-  // Por manicurista (mes en curso)
+  // Por manicurista (mes seleccionado)
   const porManicurista = useMemo(() => {
-    const inicioMes = hoy.slice(0, 7) + '-01'
-    const deMes = registros.filter((r) => r.fecha >= inicioMes)
+    const deMes = registros.filter((r) => r.fecha >= inicioMesVista && r.fecha <= finMesVista)
     const map = new Map()
     deMes.forEach((r) => {
       const nombre = r.manicuristas?.nombre ?? 'Sin asignar'
@@ -164,22 +193,45 @@ export default function PanelAdmin() {
       map.set(r.manicurista_id, cur)
     })
     return [...map.values()].sort((a, b) => b.ingresos - a.ingresos)
-  }, [registros, hoy])
+  }, [registros, inicioMesVista, finMesVista])
 
   if (loading) return <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Cargando panel…</p>
 
   return (
     <div>
       <h2 className="font-display text-2xl mb-1">Dashboard</h2>
-      <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
+      <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
         Ingresos, pagos a manicuristas y utilidad neta del spa.
       </p>
+
+      <div className="flex items-center gap-2 mb-6">
+        <select
+          value={mesVista}
+          onChange={(e) => setMesVista(e.target.value)}
+          className="text-sm rounded-full px-4 py-2 capitalize"
+          style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}
+        >
+          {opcionesDeMes(hoy).map((o) => (
+            <option key={o.valor} value={o.valor}>{o.etiqueta}</option>
+          ))}
+        </select>
+        {!esMesActual && (
+          <button
+            type="button"
+            onClick={() => setMesVista(hoy.slice(0, 7))}
+            className="text-xs font-medium rounded-full px-4 py-2"
+            style={{ border: '1px solid #E2D3AE', color: '#B58A54' }}
+          >
+            Volver a este mes
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         {[
           { label: 'Hoy', d: resumen.hoy },
           { label: 'Esta semana', d: resumen.semana },
-          { label: 'Este mes', d: resumen.mes },
+          { label: esMesActual ? 'Este mes' : longMonth(inicioMesVista), d: resumen.mes },
         ].map((b) => (
           <div key={b.label} className="card p-4">
             <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>{b.label} · {b.d.n} servicios</p>
@@ -243,7 +295,7 @@ export default function PanelAdmin() {
 
       <div className="card p-4 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold">Neto diario · {longMonth(hoy)}</h3>
+          <h3 className="text-sm font-semibold">Neto diario · {longMonth(inicioMesVista)}</h3>
           <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Ingresos del spa − gastos del día</span>
         </div>
         <ResponsiveContainer width="100%" height={200}>
@@ -314,11 +366,11 @@ export default function PanelAdmin() {
 
       <div className="card p-4 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold">Gastos por categoría · mes en curso</h3>
+          <h3 className="text-sm font-semibold">Gastos por categoría · {longMonth(inicioMesVista)}</h3>
           <span className="text-xs font-mono-num" style={{ color: 'var(--color-text-muted)' }}>{currency(totalGastosMes)}</span>
         </div>
         {gastosPorCategoria.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Sin gastos registrados este mes.</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Sin gastos registrados en {longMonth(inicioMesVista)}.</p>
         ) : (
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <ResponsiveContainer width="100%" height={200} style={{ maxWidth: 220 }}>
@@ -356,9 +408,9 @@ export default function PanelAdmin() {
       </div>
 
       <div className="card p-4">
-        <h3 className="text-sm font-semibold mb-3">Por manicurista · mes en curso</h3>
+        <h3 className="text-sm font-semibold mb-3">Por manicurista · {longMonth(inicioMesVista)}</h3>
         {porManicurista.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Sin servicios este mes.</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Sin servicios en {longMonth(inicioMesVista)}.</p>
         ) : (
           <div className="space-y-3">
             {porManicurista.map((m) => (
