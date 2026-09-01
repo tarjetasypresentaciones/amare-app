@@ -391,43 +391,55 @@ export default function Clientes() {
 
           <div className="card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs table-fixed">
+                <colgroup>
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '19%' }} />
+                  <col style={{ width: '19%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '15%' }} />
+                </colgroup>
                 <thead>
                   <tr className="text-left" style={{ color: 'var(--color-text-muted)' }}>
-                    <th className="px-3 py-2 font-medium">Fecha</th>
-                    <th className="px-3 py-2 font-medium">Recibo</th>
-                    <th className="px-3 py-2 font-medium">Cliente</th>
-                    <th className="px-3 py-2 font-medium">Manicurista</th>
-                    <th className="px-3 py-2 font-medium">Servicio</th>
-                    <th className="px-3 py-2 font-medium text-right">Pagado</th>
+                    <th className="px-1.5 py-1.5 font-medium">Fecha</th>
+                    <th className="px-1.5 py-1.5 font-medium">Recibo</th>
+                    <th className="px-1.5 py-1.5 font-medium">Cliente</th>
+                    <th className="px-1.5 py-1.5 font-medium">Manicurista</th>
+                    <th className="px-1.5 py-1.5 font-medium">Servicio</th>
+                    <th className="px-1.5 py-1.5 font-medium text-right">Pagado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingHistorial ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                      <td colSpan={6} className="px-1.5 py-4 text-xs" style={{ color: 'var(--color-text-muted)' }}>
                         Cargando…
                       </td>
                     </tr>
                   ) : historial.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                      <td colSpan={6} className="px-1.5 py-4 text-xs" style={{ color: 'var(--color-text-muted)' }}>
                         Sin servicios para este filtro.
                       </td>
                     </tr>
                   ) : (
                     historial.map((r) => (
                       <tr key={r.id} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
-                        <td className="px-3 py-2 whitespace-nowrap">{shortDate(r.fecha)}</td>
-                        <td className="px-3 py-2 whitespace-nowrap font-mono-num" style={{ color: 'var(--color-text-muted)' }}>
-                          {r.numero_recibo ? `N.º ${String(r.numero_recibo).padStart(6, '0')}` : '—'}
+                        <td className="px-1.5 py-1.5 whitespace-nowrap">{shortDate(r.fecha)}</td>
+                        <td className="px-1.5 py-1.5 whitespace-nowrap font-mono-num" style={{ color: 'var(--color-text-muted)' }}>
+                          {r.numero_recibo ? `N.º ${r.numero_recibo}` : '—'}
                         </td>
-                        <td className="px-3 py-2" style={{ color: 'var(--color-text-muted)' }}>{r.cliente_nombre || '—'}</td>
-                        <td className="px-3 py-2">
-                          <PolishDot color={r.manicuristas?.color} label={r.manicuristas?.nombre} />
+                        <td className="px-1.5 py-1.5 truncate" style={{ color: 'var(--color-text-muted)' }} title={r.cliente_nombre || ''}>
+                          {r.cliente_nombre || '—'}
                         </td>
-                        <td className="px-3 py-2">{r.tipo_servicio}</td>
-                        <td className="px-3 py-2 text-right font-mono-num font-medium">{currency(r.costo)}</td>
+                        <td className="px-1.5 py-1.5 overflow-hidden">
+                          <div className="truncate">
+                            <PolishDot color={r.manicuristas?.color} label={r.manicuristas?.nombre} />
+                          </div>
+                        </td>
+                        <td className="px-1.5 py-1.5 truncate" title={r.tipo_servicio}>{r.tipo_servicio}</td>
+                        <td className="px-1.5 py-1.5 text-right font-mono-num font-medium">{currency(r.costo)}</td>
                       </tr>
                     ))
                   )}
