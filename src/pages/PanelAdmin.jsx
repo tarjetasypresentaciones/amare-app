@@ -69,12 +69,12 @@ export default function PanelAdmin() {
         .lte('fecha', hasta),
       supabase.from('gastos').select('fecha, valor, categorias_gasto(nombre)').gte('fecha', desde).lte('fecha', hasta),
       supabase.from('manicuristas').select('id, nombre, color, activo').order('nombre'),
-      supabase.from('configuracion').select('meta_mensual').eq('id', 1).maybeSingle(),
-    ]).then(([r, g, m, cfg]) => {
+      supabase.from('metas_mensuales').select('valor').eq('mes', mesVista).maybeSingle(),
+    ]).then(([r, g, m, meta]) => {
       setRegistros(r.data ?? [])
       setGastos(g.data ?? [])
       setManicuristas(m.data ?? [])
-      if (cfg.data?.meta_mensual) setMetaMensual(Number(cfg.data.meta_mensual))
+      setMetaMensual(meta.data?.valor != null ? Number(meta.data.valor) : META_MENSUAL_DEFECTO)
       setLoading(false)
     })
   }, [mesVista])
@@ -88,7 +88,9 @@ export default function PanelAdmin() {
     const valor = parseFloat(metaInput)
     if (!valor || valor <= 0) return
     setGuardandoMeta(true)
-    const { error } = await supabase.from('configuracion').update({ meta_mensual: valor }).eq('id', 1)
+    const { error } = await supabase
+      .from('metas_mensuales')
+      .upsert({ mes: mesVista, valor, updated_at: new Date().toISOString() }, { onConflict: 'mes' })
     setGuardandoMeta(false)
     if (!error) {
       setMetaMensual(valor)
@@ -246,7 +248,7 @@ export default function PanelAdmin() {
       <div className="card p-4 mb-6">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Meta mínima del mes</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Meta mínima · {longMonth(inicioMesVista)}</p>
             <p className="font-mono-num text-lg font-semibold">{currency(metaMensual)}</p>
           </div>
           {editandoMeta ? (
