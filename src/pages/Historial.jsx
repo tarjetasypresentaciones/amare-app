@@ -123,6 +123,28 @@ export default function Historial() {
     setGenerandoPago(true)
 
     const manicuristaNombre = manicuristas.find((m) => m.id === filtroManicurista)?.nombre ?? '—'
+
+    // Evitar duplicados: si ya existe un pago para esta manicurista y este mismo periodo, avisar antes de crear otro
+    const { data: existentes } = await supabase
+      .from('pagos_manicuristas')
+      .select('id, firmado_at')
+      .eq('manicurista_id', filtroManicurista)
+      .eq('fecha_desde', desde)
+      .eq('fecha_hasta', hasta)
+
+    if (existentes && existentes.length > 0) {
+      const yaFirmado = existentes.some((p) => p.firmado_at)
+      const confirmar = window.confirm(
+        `Ya generaste ${existentes.length} pago(s) para ${manicuristaNombre} en este mismo periodo` +
+          (yaFirmado ? ' (al menos uno ya firmado).' : '.') +
+          ' ¿Seguro que quieres generar otro? Vas a tener duplicados en "Pagos generados".'
+      )
+      if (!confirmar) {
+        setGenerandoPago(false)
+        return
+      }
+    }
+
     const filasPorDia = agruparPorDia(registros)
     const total = registros.reduce((s, r) => s + Number(r.pagado_manicurista), 0)
     const logoDataUrl = await imagenComoDataUrl(logoAmareUrl)
@@ -180,6 +202,17 @@ export default function Historial() {
   useEffect(() => {
     cargarPagos()
   }, [filtroManicurista])
+
+  const eliminarPagoPendiente = async (pago) => {
+    if (pago.firmado_at) return // seguridad extra: nunca borrar uno ya firmado
+    const ok = window.confirm(
+      `¿Eliminar el pago pendiente de ${pago.manicuristas?.nombre ?? ''} (${shortDate(pago.fecha_desde)} — ${shortDate(pago.fecha_hasta)})? Esta acción no se puede deshacer.`
+    )
+    if (!ok) return
+    const { error } = await supabase.from('pagos_manicuristas').delete().eq('id', pago.id).is('firmado_at', null)
+    if (!error) cargarPagos()
+    else window.alert('No se pudo eliminar: ' + error.message)
+  }
 
   return (
     <div>
@@ -311,6 +344,7 @@ export default function Historial() {
                 <th className="px-4 py-2 font-medium text-right">Total</th>
                 <th className="px-4 py-2 font-medium">Estado</th>
                 <th className="px-4 py-2 font-medium">PDF</th>
+                <th className="px-4 py-2 font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -345,6 +379,18 @@ export default function Historial() {
                       </a>
                     ) : (
                       <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    {!p.firmado_at && (
+                      <button
+                        type="button"
+                        onClick={() => eliminarPagoPendiente(p)}
+                        className="text-xs font-medium rounded-full px-3 py-1.5"
+                        style={{ border: '1px solid var(--color-danger)', color: 'var(--color-danger)' }}
+                      >
+                        Eliminar
+                      </button>
                     )}
                   </td>
                 </tr>
