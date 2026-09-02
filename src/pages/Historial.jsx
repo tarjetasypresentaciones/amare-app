@@ -153,8 +153,33 @@ export default function Historial() {
     } else {
       setAvisoPagoOk(true)
       setAvisoPago(`Se descargó el PDF y se envió a ${manicuristaNombre} para que lo firme desde su cuenta.`)
+      cargarPagos()
     }
   }
+
+  // ---- Consultar los pagos ya generados (firmados o pendientes de firma) ----
+  const [pagos, setPagos] = useState([])
+  const [loadingPagos, setLoadingPagos] = useState(true)
+
+  const cargarPagos = () => {
+    setLoadingPagos(true)
+    let query = supabase
+      .from('pagos_manicuristas')
+      .select('id, fecha_desde, fecha_hasta, total, firmado_at, pdf_url, manicurista_id, manicuristas(nombre, color)')
+      .order('created_at', { ascending: false })
+      .limit(100)
+
+    if (filtroManicurista) query = query.eq('manicurista_id', filtroManicurista)
+
+    query.then(({ data, error }) => {
+      if (!error) setPagos(data ?? [])
+      setLoadingPagos(false)
+    })
+  }
+
+  useEffect(() => {
+    cargarPagos()
+  }, [filtroManicurista])
 
   return (
     <div>
@@ -261,6 +286,67 @@ export default function Historial() {
                   <td className="px-4 py-2" style={{ color: 'var(--color-text-muted)' }}>{r.cliente_nombre || '—'}</td>
                   <td className="px-4 py-2 text-right font-mono-num">{currency(r.costo)}</td>
                   <td className="px-4 py-2 text-right font-mono-num font-medium">{currency(r.pagado_manicurista)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <h3 className="font-display text-xl mb-1 mt-8">Pagos generados</h3>
+      <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>
+        Recibos de pago enviados a firmar. Cuando la manicurista firma, aquí queda el PDF firmado disponible.
+      </p>
+      <div className="card overflow-x-auto">
+        {loadingPagos ? (
+          <p className="p-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
+        ) : pagos.length === 0 ? (
+          <p className="p-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>Aún no se ha generado ningún pago.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left" style={{ color: 'var(--color-text-muted)' }}>
+                <th className="px-4 py-2 font-medium">Manicurista</th>
+                <th className="px-4 py-2 font-medium">Periodo</th>
+                <th className="px-4 py-2 font-medium text-right">Total</th>
+                <th className="px-4 py-2 font-medium">Estado</th>
+                <th className="px-4 py-2 font-medium">PDF</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagos.map((p) => (
+                <tr key={p.id} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+                  <td className="px-4 py-2">
+                    <PolishDot color={p.manicuristas?.color} label={p.manicuristas?.nombre} />
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap">{shortDate(p.fecha_desde)} — {shortDate(p.fecha_hasta)}</td>
+                  <td className="px-4 py-2 text-right font-mono-num font-medium">{currency(p.total)}</td>
+                  <td className="px-4 py-2">
+                    {p.firmado_at ? (
+                      <span className="text-xs font-medium rounded-full px-2 py-1" style={{ background: 'var(--color-success-soft)', color: 'var(--color-success)' }}>
+                        Firmado {shortDate(p.firmado_at.slice(0, 10))}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium rounded-full px-2 py-1" style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}>
+                        Pendiente de firma
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    {p.pdf_url ? (
+                      <a
+                        href={p.pdf_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-medium rounded-full px-3 py-1.5"
+                        style={{ border: '1px solid var(--color-border)' }}
+                      >
+                        Ver PDF
+                      </a>
+                    ) : (
+                      <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
