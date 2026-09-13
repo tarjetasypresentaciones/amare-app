@@ -7,6 +7,8 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  // true justo cuando el usuario llegó desde el link de "recuperar contraseña" de Supabase
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   const loadProfile = useCallback(async (userId) => {
     if (!userId) {
@@ -32,7 +34,8 @@ export function AuthProvider({ children }) {
       loadProfile(session?.user?.id).finally(() => setLoading(false))
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
       setSession(newSession)
       loadProfile(newSession?.user?.id)
     })
@@ -49,6 +52,12 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
+  const updatePassword = async (nuevaPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: nuevaPassword })
+    if (!error) setPasswordRecovery(false)
+    return { error }
+  }
+
   const value = {
     session,
     user: session?.user ?? null,
@@ -60,8 +69,10 @@ export function AuthProvider({ children }) {
     // Clientes) para que se comporten igual que para un admin normal.
     puedeOperar: profile?.role === 'admin' || profile?.role === 'empleado_admin',
     loading,
+    passwordRecovery,
     signIn,
     signOut,
+    updatePassword,
     refreshProfile: () => loadProfile(session?.user?.id),
   }
 
