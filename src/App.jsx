@@ -15,6 +15,7 @@ import TiposServicio from './pages/TiposServicio'
 import CalendarioAdmin from './pages/CalendarioAdmin'
 import MiCalendario from './pages/MiCalendario'
 import Gastos from './pages/Gastos'
+import NuevaContrasena from './pages/NuevaContrasena'
 
 const homePathForRole = (role) => {
   if (role === 'admin' || role === 'empleado_admin') return '/registrar'
@@ -42,12 +43,20 @@ function Protected({ children, allowedRoles }) {
 }
 
 function AppRoutes() {
-  const { profile } = useAuth()
+  const { profile, passwordRecovery } = useAuth()
   const homePath = homePathForRole(profile?.role)
+
+  // Sin importar en qué página haya caído el link de recuperación de
+  // contraseña (Site URL, /login, etc.), si Supabase avisó que estamos en
+  // modo recuperación, mandamos siempre a la pantalla de contraseña nueva.
+  if (passwordRecovery && window.location.pathname !== '/actualizar-password') {
+    return <Navigate to="/actualizar-password" replace />
+  }
 
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/actualizar-password" element={<NuevaContrasena />} />
       <Route path="/registrar" element={<Protected allowedRoles={['admin', 'empleado_admin']}><RegistrarServicio /></Protected>} />
       <Route path="/calendario" element={<Protected allowedRoles={['admin', 'empleado_admin']}><CalendarioAdmin /></Protected>} />
       <Route path="/mi-calendario" element={<Protected><MiCalendario /></Protected>} />
