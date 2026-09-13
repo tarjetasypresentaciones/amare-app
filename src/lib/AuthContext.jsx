@@ -3,12 +3,23 @@ import { supabase } from './supabaseClient'
 
 const AuthContext = createContext(null)
 
+// Revisa la URL directamente (hash tipo #access_token=...&type=recovery, o
+// query tipo ?code=...&type=recovery) para saber si este link es de
+// "recuperar contraseña" — sin depender de que Supabase avise el evento a
+// tiempo, ni de si el navegador ya tenía una sesión iniciada de antes.
+const esLinkDeRecuperacion = () => {
+  if (typeof window === 'undefined') return false
+  const hash = window.location.hash || ''
+  const search = window.location.search || ''
+  return hash.includes('type=recovery') || search.includes('type=recovery')
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   // true justo cuando el usuario llegó desde el link de "recuperar contraseña" de Supabase
-  const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [passwordRecovery, setPasswordRecovery] = useState(esLinkDeRecuperacion)
 
   const loadProfile = useCallback(async (userId) => {
     if (!userId) {
