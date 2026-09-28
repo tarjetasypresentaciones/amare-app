@@ -39,6 +39,9 @@ export default function RegistrarServicio() {
   const [saving, setSaving] = useState(false)
   const [recibo, setRecibo] = useState(null)
   const [faltaApertura, setFaltaApertura] = useState(false)
+  // Modo carga histórica: permite registrar servicios de días anteriores
+  // (ej. cuando se cae el internet en el local). No genera recibo de caja.
+  const [cargaHistorica, setCargaHistorica] = useState(false)
   const horaImpresionRef = useRef(null)
 
   useEffect(() => {
@@ -69,25 +72,32 @@ export default function RegistrarServicio() {
       .eq('activo', true)
       .then(({ data }) => setVinculos(data ?? []))
 
-    // Manicuristas con día libre aprobado para hoy: no deben poder
+  }, [])
+
+  // Estas dos consultas dependen de la fecha del registro (hoy, o la fecha
+  // elegida en modo carga histórica).
+  useEffect(() => {
+    const fecha = form.fecha || todayISO()
+
+    // Manicuristas con día libre aprobado en esa fecha: no deben poder
     // recibir servicios registrados a su nombre.
     supabase
       .from('dias_libres_manicurista')
       .select('manicurista_id')
-      .eq('fecha', todayISO())
+      .eq('fecha', fecha)
       .eq('estado', 'aprobado')
       .then(({ data }) => setIdsConDiaLibreHoy((data ?? []).map((d) => d.manicurista_id)))
 
     // Si todavía no se ha registrado el conteo de efectivo de apertura de
-    // hoy, la base de datos va a rechazar el guardado — avisamos antes de
+    // ese día, la base de datos va a rechazar el guardado — avisamos antes de
     // que la persona llene todo el formulario.
     supabase
       .from('cierres_caja')
       .select('efectivo_apertura')
-      .eq('fecha', todayISO())
+      .eq('fecha', fecha)
       .maybeSingle()
       .then(({ data }) => setFaltaApertura(!data?.efectivo_apertura))
-  }, [])
+  }, [form.fecha])
 
   useEffect(() => {
     if (!puedeOperar && profile?.manicurista_id) {
@@ -230,11 +240,15 @@ export default function RegistrarServicio() {
     const plural = filas.length > 1 ? `${filas.length} servicios guardados` : 'Servicio guardado'
     setStatus({
       type: 'success',
-      msg: `${plural} — Recibo de Caja N.º ${numeroRecibo}. Se le paga ${currency(pagadoPreview)} a la manicurista.`,
+      msg: cargaHistorica
+        ? `${plural} (carga histórica, fecha ${fechaRegistro}) — sin recibo de caja.`
+        : `${plural} — Recibo de Caja N.º ${numeroRecibo}. Se le paga ${currency(pagadoPreview)} a la manicurista.`,
     })
 
     const manicurista = manicuristas.find((m) => m.id === form.manicurista_id)
-    setRecibo({
+    // En modo carga histórica no se genera recibo imprimible: son servicios
+    // atrasados, no una venta que se esté cobrando en el momento.
+    if (!cargaHistorica) setRecibo({
       numero: numeroRecibo,
       fecha: fechaRegistro,
       manicurista: manicurista?.nombre ?? '',
@@ -276,24 +290,68 @@ export default function RegistrarServicio() {
 
       {faltaApertura && (
         <div className="rounded-lg px-4 py-3 mb-6 text-sm" style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}>
-          Falta el conteo de efectivo de apertura de hoy — regístralo desde <strong>Cierre de caja</strong> antes de continuar.
+          Falta el conteo de efectivo de apertura {form.fecha === todayISO() ? 'de hoy' : `del ${form.fecha}`} — regístralo desde <strong>Cierre de caja</strong> antes de continuar.
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="card p-9 space-y-6">
+        {puedeOperar && (
+          <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: 'var(--color-accent-soft)' }}>
+            <div>
+              <p className="text-xs font-semibold" style={{ color: '#8A7A4E' }}>Modo carga histórica</p>
+              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                Actívalo para registrar servicios de días anteriores. No genera recibo de caja.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={cargaHistorica}
+              onClick={() => {
+                setCargaHistorica((v) => !v)
+                setForm((f) => ({ ...f, fecha: todayISO() }))
+                setRecibo(null)
+              }}
+              className="w-11 h-6 rounded-full relative shrink-0 transition-colors cursor-pointer border"
+              style={{
+                background: cargaHistorica ? 'var(--color-primary)' : '#D9D2D4',
+                borderColor: cargaHistorica ? 'var(--color-primary)' : '#D9D2D4',
+              }}
+            >
+              <span
+                className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
+                style={{ left: cargaHistorica ? '1.5rem' : '0.2rem' }}
+              />
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-1">Fecha</label>
-            <input
-              type="date"
-              value={form.fecha}
-              disabled
-              readOnly
-              className="w-full rounded-lg border px-3 py-2 text-sm cursor-not-allowed opacity-70"
-              style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}
-            />
+            {cargaHistorica ? (
+              <input
+                type="date"
+                value={form.fecha}
+                max={todayISO()}
+                onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value > todayISO() ? todayISO() : e.target.value }))}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: 'var(--color-primary)', background: 'var(--color-bg)' }}
+              />
+            ) : (
+              <input
+                type="date"
+                value={form.fecha}
+                disabled
+                readOnly
+                className="w-full rounded-lg border px-3 py-2 text-sm cursor-not-allowed opacity-70"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}
+              />
+            )}
             <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-              Los servicios solo se registran con la fecha de hoy.
+              {cargaHistorica
+                ? 'Elige la fecha en que se realizó el servicio (no se permiten fechas futuras).'
+                : 'Los servicios solo se registran con la fecha de hoy.'}
             </p>
           </div>
           <div>
