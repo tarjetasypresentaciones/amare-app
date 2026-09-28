@@ -51,6 +51,8 @@ export default function MisIngresos() {
       .eq('manicurista_id', profile.manicurista_id)
       .gte('fecha', daysAgoISO(90))
       .order('fecha', { ascending: false })
+      // Dentro de cada día, el servicio registrado más recientemente va arriba.
+      .order('created_at', { ascending: false })
       .then(({ data }) => {
         setRegistros(data ?? [])
         setLoading(false)
