@@ -90,6 +90,12 @@ export default function MisIngresos() {
 
   const hoy = todayISO()
 
+  // Total que le corresponde a la manicurista por los servicios del rango filtrado.
+  const totalLista = useMemo(
+    () => lista.reduce((s, r) => s + Number(r.pagado_manicurista), 0),
+    [lista]
+  )
+
   const resumen = useMemo(() => {
     const inicioSemana = startOfWeekISO(hoy)
     const inicioMes = hoy.slice(0, 7) + '-01'
@@ -328,6 +334,20 @@ export default function MisIngresos() {
           <label className="block text-xs font-medium mb-1">Hasta</label>
           <input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)}
             className="w-full rounded-lg border px-2 py-1.5 text-sm" style={{ borderColor: 'var(--color-border)' }} />
+        </div>
+        <div
+          className="col-span-2 flex items-center justify-between rounded-lg px-3 py-2"
+          style={{ background: 'var(--color-accent-soft)' }}
+        >
+          <div>
+            <p className="text-xs font-semibold">Te corresponde en estas fechas</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              {cargandoLista ? '—' : `${lista.length} servicio${lista.length === 1 ? '' : 's'}`}
+            </p>
+          </div>
+          <p className="font-mono-num text-lg font-semibold" style={{ color: 'var(--color-primary)' }}>
+            {cargandoLista ? '…' : currency(totalLista)}
+          </p>
         </div>
       </div>
 
