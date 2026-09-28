@@ -21,7 +21,12 @@ function descripcionDispositivo() {
 
 export default function MisIngresos() {
   const { profile } = useAuth()
-  const [registros, setRegistros] = useState([])
+  const [registros, setRegistros] = useState([]) // últimos 90 días, para los totales de hoy/semana/mes
+  // Filtro de la tabla de servicios: por defecto, del primer día del mes en curso hasta hoy.
+  const [desde, setDesde] = useState(() => todayISO().slice(0, 7) + '-01')
+  const [hasta, setHasta] = useState(() => todayISO())
+  const [lista, setLista] = useState([])
+  const [cargandoLista, setCargandoLista] = useState(true)
   const [pagos, setPagos] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -59,6 +64,29 @@ export default function MisIngresos() {
       })
     cargarPagos()
   }, [profile])
+
+  // Servicios de la tabla, según el rango de fechas elegido.
+  useEffect(() => {
+    if (!profile?.manicurista_id || !desde || !hasta) {
+      setLista([])
+      setCargandoLista(false)
+      return
+    }
+    setCargandoLista(true)
+    supabase
+      .from('registros_servicios')
+      .select('id, fecha, cliente_nombre, tipo_servicio, costo, porcentaje, pagado_manicurista')
+      .eq('manicurista_id', profile.manicurista_id)
+      .gte('fecha', desde)
+      .lte('fecha', hasta)
+      .order('fecha', { ascending: false })
+      // Dentro de cada día, el servicio registrado más recientemente va arriba.
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setLista(data ?? [])
+        setCargandoLista(false)
+      })
+  }, [profile, desde, hasta])
 
   const hoy = todayISO()
 
@@ -290,9 +318,24 @@ export default function MisIngresos() {
         </div>
       )}
 
+      <div className="card p-4 mb-4 grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium mb-1">Desde</label>
+          <input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)}
+            className="w-full rounded-lg border px-2 py-1.5 text-sm" style={{ borderColor: 'var(--color-border)' }} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1">Hasta</label>
+          <input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)}
+            className="w-full rounded-lg border px-2 py-1.5 text-sm" style={{ borderColor: 'var(--color-border)' }} />
+        </div>
+      </div>
+
       <div className="card overflow-x-auto">
-        {registros.length === 0 ? (
-          <p className="p-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>Aún no tienes servicios registrados.</p>
+        {cargandoLista ? (
+          <p className="p-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
+        ) : lista.length === 0 ? (
+          <p className="p-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>No tienes servicios registrados en estas fechas.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -305,7 +348,7 @@ export default function MisIngresos() {
               </tr>
             </thead>
             <tbody>
-              {registros.map((r) => (
+              {lista.map((r) => (
                 <tr key={r.id} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
                   <td className="px-4 py-2 whitespace-nowrap">{shortDate(r.fecha)}</td>
                   <td className="px-4 py-2">{r.tipo_servicio}</td>
