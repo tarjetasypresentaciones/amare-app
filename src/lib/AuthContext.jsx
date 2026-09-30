@@ -3,6 +3,15 @@ import { supabase } from './supabaseClient'
 
 const AuthContext = createContext(null)
 
+// Revisa si el usuario fue desactivado desde "Perfiles activos". Si la
+// columna todavía no existe o la consulta falla, se asume activo para no
+// dejar a nadie por fuera por un error.
+const estaDesactivado = async (userId) => {
+  const { data, error } = await supabase.from('profiles').select('activo').eq('id', userId).maybeSingle()
+  if (error) return false
+  return data?.activo === false
+}
+
 // Revisa la URL directamente (hash tipo #access_token=...&type=recovery, o
 // query tipo ?code=...&type=recovery) para saber si este link es de
 // "recuperar contraseña" — sin depender de que Supabase avise el evento a
@@ -34,9 +43,15 @@ export function AuthProvider({ children }) {
     if (error) {
       console.error('No se pudo cargar el perfil:', error.message)
       setProfile(null)
-    } else {
-      setProfile(data)
+      return
     }
+    // Si lo desactivaron mientras tenía la sesión abierta, se cierra.
+    if (await estaDesactivado(userId)) {
+      setProfile(null)
+      await supabase.auth.signOut()
+      return
+    }
+    setProfile(data)
   }, [])
 
   useEffect(() => {
@@ -55,8 +70,13 @@ export function AuthProvider({ children }) {
   }, [loadProfile])
 
   const signIn = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) return { error }
+    if (await estaDesactivado(data.user.id)) {
+      await supabase.auth.signOut()
+      return { error: { desactivado: true, message: 'Tu usuario está desactivado. Comunícate con la administración de Amaré.' } }
+    }
+    return { error: null }
   }
 
   const signOut = async () => {
