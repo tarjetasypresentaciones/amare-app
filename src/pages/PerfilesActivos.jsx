@@ -8,7 +8,7 @@ import Avatar from '../components/Avatar'
 // abierta se le cierra. La base de datos también le bloquea el acceso a
 // los datos (ver funciones mi_rol / mi_manicurista_id).
 const GRUPOS = [
-  { role: 'empleado_admin', titulo: 'Empleado admin' },
+  { role: 'empleado_admin', titulo: 'Admin2' },
   { role: 'manicurista', titulo: 'Manicuristas' },
 ]
 
