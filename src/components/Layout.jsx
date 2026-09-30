@@ -38,9 +38,9 @@ export default function Layout({ children }) {
     ? [
         { to: '/registrar', label: 'Registrar', icon: ICONS.registrar },
         { to: '/calendario', label: 'Calendario', icon: ICONS.calendario },
-        { to: '/gastos', label: 'Gastos', icon: ICONS.gastos },
         { to: '/clientes', label: 'Clientes', icon: ICONS.clientes },
-        { to: '/cierre-efectivo', label: 'Cierre en efectivo', icon: ICONS.cierreEfectivo },
+        { to: '/cierre', label: 'Cierre', icon: ICONS.cierre },
+        { to: '/gastos', label: 'Gastos', icon: ICONS.gastos },
       ]
     : [
         { to: '/mis-ingresos', label: 'Mis ingresos', icon: ICONS.panel },

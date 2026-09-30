@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../lib/AuthContext'
 import { todayISO } from '../utils/format'
 
 // Hora límite: 10:30 a.m. (hora del computador donde se usa la app).
@@ -35,10 +34,10 @@ const snoozeActivo = () => {
 export default function AlertaAperturaCaja() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isEmpleadoAdmin } = useAuth()
   const [mostrar, setMostrar] = useState(false)
 
-  const rutaCierre = isEmpleadoAdmin ? '/cierre-efectivo' : '/cierre'
+  // Admin y empleado_admin usan la misma pantalla de Cierre de caja.
+  const rutaCierre = '/cierre'
 
   const verificar = async () => {
     // Ya está en la pantalla de cierre correspondiente: no interrumpir ahí.
