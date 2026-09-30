@@ -35,7 +35,7 @@ export default function Login() {
     const { error } = await signIn(email.trim(), password)
     setLoading(false)
     if (error) {
-      setError('Correo o contraseña incorrectos. Verifica e intenta de nuevo.')
+      setError(error.desactivado ? error.message : 'Correo o contraseña incorrectos. Verifica e intenta de nuevo.')
       return
     }
     const dest = location.state?.from || '/registrar'
