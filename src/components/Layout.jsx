@@ -15,6 +15,7 @@ const ICONS = {
   cierreEfectivo: '💵',
   calendario: '📅',
   gastos: '🧾',
+  perfiles: '🔐',
 }
 
 export default function Layout({ children }) {
@@ -33,6 +34,7 @@ export default function Layout({ children }) {
         { to: '/equipo', label: 'Equipo', icon: ICONS.equipo },
         { to: '/cierre', label: 'Cierre', icon: ICONS.cierre },
         { to: '/gastos', label: 'Gastos', icon: ICONS.gastos },
+        { to: '/perfiles', label: 'Perfiles activos', icon: ICONS.perfiles },
       ]
     : isEmpleadoAdmin
     ? [
