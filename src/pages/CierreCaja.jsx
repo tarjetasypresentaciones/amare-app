@@ -6,7 +6,7 @@ import { useAuth } from '../lib/AuthContext'
 const BUCKET_FOTOS_CIERRE = 'fotos-cierres'
 
 export default function CierreCaja() {
-  const { profile } = useAuth()
+  const { profile, isAdmin } = useAuth()
   const hoy = todayISO()
   const [fecha, setFecha] = useState(hoy)
   const [cierre, setCierre] = useState(null)
@@ -60,7 +60,10 @@ export default function CierreCaja() {
 
     const [{ data: c }, { data: cAnt }, { data: h }] = await Promise.all([
       supabase.from('cierres_caja').select('*').eq('fecha', fecha).maybeSingle(),
-      supabase.from('cierres_caja').select('efectivo_caja_siguiente').eq('fecha', fechaAnterior).maybeSingle(),
+      // Se lee por la función (y no la tabla) porque empleado_admin solo
+      // tiene acceso al cierre del día en curso, no a los anteriores.
+      supabase.rpc('obtener_cierre_efectivo', { p_fecha: fechaAnterior })
+        .then(({ data, error }) => ({ data: Array.isArray(data) ? data[0] ?? null : data, error })),
       supabase.from('cierres_caja').select('*').gte('fecha', inicioHistorial).lte('fecha', finHistorial).order('fecha', { ascending: false }),
     ])
     setCierre(c)
@@ -308,11 +311,13 @@ export default function CierreCaja() {
       {/* --- Caja del día --- */}
       <div className="card p-5 mb-6">
         <div className="flex items-center justify-between mb-4">
+          {/* Empleado admin solo ve el cierre del día en curso. */}
           <input
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
-            className="rounded-lg border px-3 py-1.5 text-sm"
+            disabled={!isAdmin}
+            className={`rounded-lg border px-3 py-1.5 text-sm${isAdmin ? '' : ' cursor-not-allowed opacity-70'}`}
             style={{ borderColor: 'var(--color-border)' }}
           />
           {cierre && (
@@ -671,7 +676,7 @@ export default function CierreCaja() {
                   Confirmar cierre
                 </button>
               )}
-              {cierre.estado === 'confirmado' && fecha === hoy && !cierre.reapertura_usada && !mostrarReapertura && (
+              {isAdmin && cierre.estado === 'confirmado' && fecha === hoy && !cierre.reapertura_usada && !mostrarReapertura && (
                 <button
                   onClick={() => setMostrarReapertura(true)}
                   disabled={busy}
@@ -734,6 +739,7 @@ export default function CierreCaja() {
         )}
       </div>
 
+      {isAdmin && (
       <div className="card divide-y" style={{ borderColor: 'var(--color-border)' }}>
         <p className="px-4 py-3 text-sm font-semibold">Cierres de la semana</p>
         {historial.length === 0 && (
@@ -784,6 +790,7 @@ export default function CierreCaja() {
           </button>
         ))}
       </div>
+      )}
     </div>
   )
 }
