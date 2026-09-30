@@ -101,7 +101,7 @@ export default function Layout({ children }) {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium truncate" style={{ color: 'var(--color-sidebar-text)' }}>{profile?.nombre_completo}</p>
             <p className="text-xs mb-2" style={{ color: 'var(--color-sidebar-text-muted)' }}>
-              {isAdmin ? 'Administradora/or' : isEmpleadoAdmin ? 'Empleado admin' : 'Manicurista'}
+              {isAdmin ? 'Administradora/or' : isEmpleadoAdmin ? 'Admin2' : 'Manicurista'}
             </p>
             <button
               onClick={handleSignOut}
